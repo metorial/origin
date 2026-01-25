@@ -4,11 +4,17 @@ import { v } from '@lowerdeck/validation';
 export let env = createValidatedEnv({
   service: {
     REDIS_URL: v.string(),
-    DATABASE_URL: v.string()
+    DATABASE_URL: v.string(),
+
+    ORIGIN_SERVICE_URL: v.string()
   },
 
-  storage: {
-    OBJECT_STORAGE_URL: v.string(),
-    LOGS_BUCKET_NAME: v.string()
+  codeBucket: {
+    CODE_BUCKET_SERVICE_URL: v.string()
+  },
+
+  gh: {
+    SCM_GITHUB_CLIENT_ID: v.string(),
+    SCM_GITHUB_CLIENT_SECRET: v.string()
   }
 });

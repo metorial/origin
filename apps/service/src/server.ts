@@ -1,10 +1,10 @@
 import { OriginApi } from './controllers';
 
-console.log('Server is running');
+console.log('Origin controller is running');
 
 Bun.serve({
   fetch: OriginApi,
-  port: 52050
+  port: 52090
 });
 
 await import('./worker');

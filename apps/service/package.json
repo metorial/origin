@@ -4,13 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "bun ./src/server.ts",
-    "dev": "docker compose -p origin -f ./docker-compose.dev.yml up --pull always --build origin object-storage",
-    "test": "vitest run tests/unit/ tests/integration/",
-    "test:watch": "vitest tests/unit/ tests/integration/",
-    "test:ui": "vitest --ui tests/unit/ tests/integration/",
-    "test:coverage": "vitest run --coverage tests/unit/ tests/integration/",
-    "test:e2e": "docker compose -p origin-test -f ./docker-compose.test.yml up --abort-on-container-exit --exit-code-from test-runner"
+    "start": "bun ./src/server.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -44,6 +38,7 @@
     "@lowerdeck/slugify": "^1.0.4",
     "@lowerdeck/validation": "^1.0.4",
     "@metorial-services/forge-client": "^1.0.3",
+    "@octokit/core": "^7.0.6",
     "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",
     "axios": "^1.13.2",

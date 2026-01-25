@@ -2,15 +2,19 @@ import { createIdGenerator, idType } from '@lowerdeck/id';
 import { Worker as SnowflakeId } from 'snowflake-uuid';
 
 export let ID = createIdGenerator({
-  tenant: idType.sorted('stn_'),
-  sender: idType.sorted('ssn_'),
+  tenant: idType.sorted('otn_'),
+  actor: idType.sorted('oac_'),
 
-  eventDestination: idType.sorted('sed_'),
-  event: idType.sorted('sev_'),
-  eventDestinationWebhook: idType.sorted('sdw_'),
-  eventDeliveryIntent: idType.sorted('sdi_'),
-  eventDeliveryAttempt: idType.sorted('sda_'),
-  eventDestinationInstance: idType.sorted('sei_')
+  codeBucket: idType.sorted('ocb_'),
+  codeBucketTemplate: idType.sorted('oct_'),
+
+  scmAccount: idType.sorted('osa_'),
+  scmRepository: idType.sorted('osr_'),
+  scmInstallation: idType.sorted('osi_'),
+  scmInstallationAttempt: idType.sorted('osb_'),
+  scmRepositoryWebhook: idType.sorted('osw_'),
+  scmRepositoryReceivedEvent: idType.sorted('ose_'),
+  scmRepositoryPush: idType.sorted('osp_')
 });
 
 let workerIdBits = 12;

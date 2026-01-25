@@ -1,5 +1,6 @@
 import { runQueueProcessors } from '@lowerdeck/queue';
-import { cleanupQueues } from './queues/cleanup';
-import { sendQueues } from './queues/send';
+import { cleanupProcessor } from './queues/cleanup';
+import { codeBucketQueueProcessor } from './queues/codeBucket';
+import { scmQueueProcessor } from './queues/scm';
 
-await runQueueProcessors([sendQueues, cleanupQueues]);
+await runQueueProcessors([cleanupProcessor, scmQueueProcessor, codeBucketQueueProcessor]);

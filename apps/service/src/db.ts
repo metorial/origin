@@ -7,6 +7,9 @@ export let db = new PrismaClient({ adapter });
 
 declare global {
   namespace PrismaJson {
-    type Headers = [string, string][];
+    type CodeBucketTemplateContents = {
+      path: string;
+      content: string;
+    }[];
   }
 }

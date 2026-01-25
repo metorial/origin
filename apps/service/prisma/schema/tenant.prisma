@@ -1,0 +1,29 @@
+model Tenant {
+  oid BigInt @id
+  id  String @unique
+
+  identifier String @unique
+  name       String
+
+  createdAt DateTime @default(now())
+
+  scmAccounts             ScmAccount[]
+  scmInstallations        ScmInstallation[]
+  scmInstallationAttempts ScmInstallationAttempt[]
+  codeBuckets             CodeBucket[]
+  scmRepositories         ScmRepository[]
+  scmRepositoryPushes     ScmRepositoryPush[]
+}
+
+model Actor {
+  oid BigInt @id
+  id  String @unique
+
+  identifier String @unique
+  name       String
+
+  createdAt DateTime @default(now())
+
+  scmInstallations        ScmInstallation[]
+  scmInstallationAttempts ScmInstallationAttempt[]
+}
