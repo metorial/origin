@@ -2,7 +2,7 @@
   "name": "@metorial/origin-root",
   "private": true,
   "scripts": {
-    "dev": "cd ./service && bun dev"
+    "dev": "docker compose -p origin -f ./docker-compose.dev.yml up --pull always --build code-bucket"
   },
   "devDependencies": {
     "prettier": "^3.5.3",
@@ -15,7 +15,7 @@
   },
   "packageManager": "bun@1.2.15",
   "workspaces": [
-    "service",
+    "apps/*",
     "packages/*",
     "clients/*"
   ],
