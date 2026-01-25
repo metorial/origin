@@ -2,7 +2,6 @@ package fs
 
 import (
 	"archive/zip"
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -12,13 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/go-redis/redis/v8"
-	memoryQueue "github.com/metorial/metorial/modules/memory-queue"
-	"github.com/metorial/metorial/modules/util"
+	objectstorage "github.com/metorial/object-storage/clients/go"
+	memoryQueue "github.com/metorial/metorial/services/code-bucket/pkg/memory-queue"
+	"github.com/metorial/metorial/services/code-bucket/pkg/util"
 	zipImporter "github.com/metorial/metorial/services/code-bucket/pkg/zip-importer"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -27,7 +23,6 @@ import (
 const (
 	redisFlushDelay   = 5 * time.Minute
 	zipExpiration     = 3 * 24 * time.Hour
-	s3ZipExpiration   = 5 * 24 * time.Hour
 	maxRedisCacheSize = 1 * 1024 * 1024
 )
 
@@ -46,7 +41,7 @@ type FileData struct {
 
 type FileSystemManager struct {
 	redis           *redis.Client
-	s3Client        *s3.S3
+	objectStorage   *objectstorage.Client
 	bucketName      string
 	flushTicker     *time.Ticker
 	importSemaphore chan struct{}
@@ -67,51 +62,12 @@ func NewFileSystemManager(opts ...FileSystemManagerOption) *FileSystemManager {
 		util.Must(redis.ParseURL(options.RedisURL)),
 	)
 
-	var sess *session.Session
-	var err error
-
-	if options.AwsEndpoint != "" {
-		awsConfig := &aws.Config{
-			Region:           aws.String(options.AwsRegion),
-			Endpoint:         aws.String(options.AwsEndpoint),
-			S3ForcePathStyle: aws.Bool(true),
-		}
-
-		if options.AwsAccessKey != "" && options.AwsSecretKey != "" {
-			awsConfig.Credentials = credentials.NewStaticCredentials(
-				options.AwsAccessKey,
-				options.AwsSecretKey,
-				"",
-			)
-		}
-
-		sess, err = session.NewSession(awsConfig)
-	} else {
-		awsConfig := &aws.Config{
-			Region: aws.String(options.AwsRegion),
-		}
-
-		if options.AwsAccessKey != "" && options.AwsSecretKey != "" {
-			awsConfig.Credentials = credentials.NewStaticCredentials(
-				options.AwsAccessKey,
-				options.AwsSecretKey,
-				"",
-			)
-		}
-
-		sess, err = session.NewSession(awsConfig)
-	}
-
-	if err != nil {
-		panic(fmt.Sprintf("failed to create AWS session: %v", err))
-	}
-
-	s3Client := s3.New(sess)
+	objectStorageClient := objectstorage.NewClient(options.ObjectStorageEndpoint)
 
 	fsm := &FileSystemManager{
 		redis:           rdb,
-		s3Client:        s3Client,
-		bucketName:      options.S3Bucket,
+		objectStorage:   objectStorageClient,
+		bucketName:      options.ObjectStorageBucket,
 		flushTicker:     time.NewTicker(60 * time.Second),
 		importSemaphore: make(chan struct{}, 15),
 	}
@@ -141,29 +97,25 @@ func (fsm *FileSystemManager) GetBucketFile(ctx context.Context, bucketID, fileP
 		}
 	}
 
-	s3Key := fmt.Sprintf("%s/%s", bucketID, filePath)
-	obj, err := fsm.s3Client.GetObjectWithContext(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(fsm.bucketName),
-		Key:    aws.String(s3Key),
-	})
+	objectKey := fmt.Sprintf("%s/%s", bucketID, filePath)
+	obj, err := fsm.objectStorage.GetObject(fsm.bucketName, objectKey)
 	if err != nil {
 		return nil, nil, fmt.Errorf("file not found")
 	}
-	defer obj.Body.Close()
 
-	content, err := io.ReadAll(obj.Body)
-	if err != nil {
-		return nil, nil, err
-	}
+	content := obj.Data
 
 	contentType := "application/octet-stream"
-	if obj.ContentType != nil {
-		contentType = *obj.ContentType
+	if obj.Metadata.ContentType != nil {
+		contentType = *obj.Metadata.ContentType
 	}
 
 	modifiedAt := time.Now()
-	if obj.LastModified != nil {
-		modifiedAt = *obj.LastModified
+	if obj.Metadata.LastModified != "" {
+		parsedTime, err := time.Parse(time.RFC3339, obj.Metadata.LastModified)
+		if err == nil {
+			modifiedAt = parsedTime
+		}
 	}
 
 	fileData := FileData{
@@ -191,13 +143,8 @@ func (fsm *FileSystemManager) GetBucketFile(ctx context.Context, bucketID, fileP
 func (fsm *FileSystemManager) PutBucketFile(ctx context.Context, bucketID, filePath string, content []byte, contentType string) error {
 
 	if len(content) > maxRedisCacheSize {
-		s3Key := fmt.Sprintf("%s/%s", bucketID, filePath)
-		_, err := fsm.s3Client.PutObjectWithContext(ctx, &s3.PutObjectInput{
-			Bucket:      aws.String(fsm.bucketName),
-			Key:         aws.String(s3Key),
-			Body:        bytes.NewReader(content),
-			ContentType: aws.String(contentType),
-		})
+		objectKey := fmt.Sprintf("%s/%s", bucketID, filePath)
+		_, err := fsm.objectStorage.PutObject(fsm.bucketName, objectKey, content, &contentType, nil)
 		return err
 	}
 
@@ -232,11 +179,8 @@ func (fsm *FileSystemManager) DeleteBucketFile(ctx context.Context, bucketID, fi
 		fsm.redis.Del(ctx, redisKey)
 	}
 
-	s3Key := fmt.Sprintf("%s/%s", bucketID, filePath)
-	_, err := fsm.s3Client.DeleteObjectWithContext(ctx, &s3.DeleteObjectInput{
-		Bucket: aws.String(fsm.bucketName),
-		Key:    aws.String(s3Key),
-	})
+	objectKey := fmt.Sprintf("%s/%s", bucketID, filePath)
+	err := fsm.objectStorage.DeleteObject(fsm.bucketName, objectKey)
 
 	return err
 }
@@ -276,18 +220,20 @@ func (fsm *FileSystemManager) GetBucketFiles(ctx context.Context, bucketID, pref
 		}
 	}
 
-	s3Prefix := bucketID + "/"
+	objectPrefix := bucketID + "/"
 	if prefix != "" {
-		s3Prefix += prefix
+		objectPrefix += prefix
 	}
 
-	result, err := fsm.s3Client.ListObjectsV2WithContext(ctx, &s3.ListObjectsV2Input{
-		Bucket: aws.String(fsm.bucketName),
-		Prefix: aws.String(s3Prefix),
-	})
+	var prefixPtr *string
+	if objectPrefix != "" {
+		prefixPtr = &objectPrefix
+	}
+
+	objects, err := fsm.objectStorage.ListObjects(fsm.bucketName, prefixPtr, nil)
 	if err == nil {
-		for _, obj := range result.Contents {
-			filePath := strings.TrimPrefix(*obj.Key, bucketID+"/")
+		for _, obj := range objects {
+			filePath := strings.TrimPrefix(obj.Key, bucketID+"/")
 
 			found := false
 			for _, f := range files {
@@ -301,22 +247,23 @@ func (fsm *FileSystemManager) GetBucketFiles(ctx context.Context, bucketID, pref
 			}
 
 			contentType := "application/octet-stream"
-			if obj.StorageClass != nil {
+			if obj.ContentType != nil {
+				contentType = *obj.ContentType
+			}
 
-				headObj, err := fsm.s3Client.HeadObjectWithContext(ctx, &s3.HeadObjectInput{
-					Bucket: aws.String(fsm.bucketName),
-					Key:    obj.Key,
-				})
-				if err == nil && headObj.ContentType != nil {
-					contentType = *headObj.ContentType
+			modifiedAt := time.Now()
+			if obj.LastModified != "" {
+				parsedTime, err := time.Parse(time.RFC3339, obj.LastModified)
+				if err == nil {
+					modifiedAt = parsedTime
 				}
 			}
 
 			files = append(files, FileInfo{
 				Path:        filePath,
-				Size:        *obj.Size,
+				Size:        int64(obj.Size),
 				ContentType: contentType,
-				ModifiedAt:  *obj.LastModified,
+				ModifiedAt:  modifiedAt,
 			})
 		}
 	}
@@ -362,30 +309,23 @@ func (fsm *FileSystemManager) GetBucketFilesAsZip(ctx context.Context, bucketId,
 
 	tmpFile.Seek(0, 0)
 
-	_, err = fsm.s3Client.PutObjectWithContext(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(fsm.bucketName),
-		Key:         aws.String(zipKey),
-		Body:        tmpFile,
-		ContentType: aws.String("application/zip"),
-	})
+	zipContent, err := io.ReadAll(tmpFile)
+	if err != nil {
+		return nil, nil, status.Errorf(codes.Internal, "failed to read zip file: %v", err)
+	}
+
+	contentType := "application/zip"
+	_, err = fsm.objectStorage.PutObject(fsm.bucketName, zipKey, zipContent, &contentType, nil)
 	if err != nil {
 		return nil, nil, status.Errorf(codes.Internal, "failed to upload zip: %v", err)
 	}
 
-	req2, _ := fsm.s3Client.GetObjectRequest(&s3.GetObjectInput{
-		Bucket: aws.String(fsm.bucketName),
-		Key:    aws.String(zipKey),
-	})
-
-	url, err := req2.Presign(s3ZipExpiration)
-	if err != nil {
-		return nil, nil, status.Errorf(codes.Internal, "failed to create presigned URL: %v", err)
-	}
+	url := fmt.Sprintf("/download/%s/%s", fsm.bucketName, zipKey)
 
 	redisKey := fmt.Sprintf("zip:%s", zipKey)
 	fsm.redis.Set(ctx, redisKey, time.Now().Unix(), zipExpiration*2)
 
-	expiresAt := time.Now().Add(s3ZipExpiration)
+	expiresAt := time.Now().Add(zipExpiration)
 
 	return &url, &expiresAt, nil
 }

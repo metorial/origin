@@ -3,11 +3,8 @@ package fs
 type FileSystemManagerOptions struct {
 	RedisURL string
 
-	S3Bucket     string
-	AwsRegion    string
-	AwsAccessKey string
-	AwsSecretKey string
-	AwsEndpoint  string
+	ObjectStorageEndpoint string
+	ObjectStorageBucket   string
 }
 
 type FileSystemManagerOption func(*FileSystemManagerOptions)
@@ -18,36 +15,14 @@ func WithRedisURL(redisURL string) FileSystemManagerOption {
 	}
 }
 
-func WithS3Bucket(bucket string) FileSystemManagerOption {
+func WithObjectStorageEndpoint(endpoint string) FileSystemManagerOption {
 	return func(opts *FileSystemManagerOptions) {
-		opts.S3Bucket = bucket
+		opts.ObjectStorageEndpoint = endpoint
 	}
 }
 
-func WithAwsRegion(region string) FileSystemManagerOption {
+func WithObjectStorageBucket(bucket string) FileSystemManagerOption {
 	return func(opts *FileSystemManagerOptions) {
-		opts.AwsRegion = region
-	}
-}
-
-func WithAwsAccessKey(accessKey string) FileSystemManagerOption {
-	return func(opts *FileSystemManagerOptions) {
-		opts.AwsAccessKey = accessKey
-	}
-}
-
-func WithAwsSecretKey(secretKey string) FileSystemManagerOption {
-	return func(opts *FileSystemManagerOptions) {
-		opts.AwsSecretKey = secretKey
-	}
-}
-
-func WithAwsEndpoint(endpoint string) FileSystemManagerOption {
-	return func(opts *FileSystemManagerOptions) {
-		if endpoint == "" {
-			return
-		}
-
-		opts.AwsEndpoint = endpoint
+		opts.ObjectStorageBucket = bucket
 	}
 }

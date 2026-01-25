@@ -8,7 +8,7 @@ import (
 	"syscall"
 
 	"github.com/joho/godotenv"
-	sentryUtil "github.com/metorial/metorial/modules/sentry-util"
+	sentryUtil "github.com/metorial/metorial/services/code-bucket/pkg/sentry-util"
 	"github.com/metorial/metorial/services/code-bucket/internal/service"
 	"github.com/metorial/metorial/services/code-bucket/pkg/fs"
 )
@@ -22,15 +22,13 @@ func main() {
 	sentryUtil.InitSentryIfNeeded()
 	defer sentryUtil.ShutdownSentry()
 
-	httpAddress := getEnvOrDefault("CODE_BUCKET_HTTP_ADDRESS", ":4040")
+	httpAddress := getEnvOrDefault("CODE_BUCKET_HTTP_ADDRESS", ":52091")
 	rpcAddress := getEnvOrDefault("CODE_BUCKET_RPC_ADDRESS", ":5050")
+	workspaceAddress := getEnvOrDefault("CODE_BUCKET_WORKSPACE_ADDRESS", ":52092")
 
 	jwtSecret := mustGetEnv("CODE_BUCKET_JWT_SECRET")
-	awsBucket := mustGetEnv("CODE_BUCKET_AWS_S3_BUCKET")
-	awsRegion := mustGetEnv("CODE_BUCKET_AWS_REGION")
-	awsAccessKey := os.Getenv("CODE_BUCKET_AWS_ACCESS_KEY")
-	awsSecretKey := os.Getenv("CODE_BUCKET_AWS_SECRET_KEY")
-	awsEndpoint := os.Getenv("CODE_BUCKET_AWS_ENDPOINT")
+	objectStorageEndpoint := mustGetEnv("CODE_BUCKET_OBJECT_STORAGE_ENDPOINT")
+	objectStorageBucket := mustGetEnv("CODE_BUCKET_OBJECT_STORAGE_BUCKET")
 	redisURL := os.Getenv("CODE_BUCKET_REDIS_URL")
 
 	if redisURL == "" {
@@ -54,15 +52,12 @@ func main() {
 	}
 
 	service := service.NewService(jwtSecret,
-		fs.WithAwsAccessKey(awsAccessKey),
-		fs.WithAwsSecretKey(awsSecretKey),
-		fs.WithAwsRegion(awsRegion),
-		fs.WithS3Bucket(awsBucket),
-		fs.WithAwsEndpoint(awsEndpoint),
+		fs.WithObjectStorageEndpoint(objectStorageEndpoint),
+		fs.WithObjectStorageBucket(objectStorageBucket),
 		fs.WithRedisURL(redisURL),
 	)
 
-	service.Start(httpAddress, rpcAddress)
+	service.Start(httpAddress, rpcAddress, workspaceAddress)
 
 	// Wait for interrupt signal
 	sigChan := make(chan os.Signal, 1)

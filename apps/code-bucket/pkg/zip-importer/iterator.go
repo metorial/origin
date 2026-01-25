@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/metorial/metorial/modules/util"
+	"github.com/metorial/metorial/services/code-bucket/pkg/util"
 )
 
 type ZipFileIterator struct {

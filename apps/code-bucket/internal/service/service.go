@@ -6,27 +6,37 @@ import (
 	"net"
 	"net/http"
 
-	grpcUtil "github.com/metorial/metorial/mcp-engine/pkg/grpcUtil"
+	grpcUtil "github.com/metorial/metorial/services/code-bucket/pkg/grpcUtil"
 	"github.com/metorial/metorial/services/code-bucket/gen/rpc"
 	"github.com/metorial/metorial/services/code-bucket/pkg/fs"
+	"github.com/metorial/metorial/services/code-bucket/pkg/workspace"
 	"google.golang.org/grpc/reflection"
 )
 
 type Service struct {
-	fsm       *fs.FileSystemManager
-	jwtSecret []byte
+	fsm             *fs.FileSystemManager
+	jwtSecret       []byte
+	workspaceServer *workspace.Server
 }
 
 func NewService(jwtSecret string, opts ...fs.FileSystemManagerOption) *Service {
 	fsm := fs.NewFileSystemManager(opts...)
 
+	// Initialize workspace server
+	workspaceServer, err := workspace.NewServer()
+	if err != nil {
+		log.Printf("Warning: Failed to initialize workspace server: %v", err)
+		workspaceServer = nil
+	}
+
 	return &Service{
-		fsm:       fsm,
-		jwtSecret: []byte(jwtSecret),
+		fsm:             fsm,
+		jwtSecret:       []byte(jwtSecret),
+		workspaceServer: workspaceServer,
 	}
 }
 
-func (s *Service) Start(httpAddress, rpcAddress string) error {
+func (s *Service) Start(httpAddress, rpcAddress, workspaceAddress string) error {
 	httpRouter := newHttpServiceRouter(s)
 	rpcService := newRcpService(s)
 
@@ -60,6 +70,18 @@ func (s *Service) Start(httpAddress, rpcAddress string) error {
 			log.Fatalf("gRPC server failed: %v", err)
 		}
 	}()
+
+	// Start workspace server if available
+	if s.workspaceServer != nil {
+		go func() {
+			log.Printf("Workspace server starting on %s\n", workspaceAddress)
+			if err := s.workspaceServer.Start(workspaceAddress); err != nil {
+				log.Fatalf("Workspace server failed: %v", err)
+			}
+		}()
+	} else {
+		log.Printf("Workspace server disabled (workspace assets not embedded)")
+	}
 
 	return nil
 }

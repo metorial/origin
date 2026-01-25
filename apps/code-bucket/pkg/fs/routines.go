@@ -1,7 +1,6 @@
 package fs
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,9 +9,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 func (fsm *FileSystemManager) backgroundFlush() {
@@ -113,13 +109,8 @@ func (fsm *FileSystemManager) flushFileToS3(ctx context.Context, bucketID, fileP
 		return err
 	}
 
-	s3Key := fmt.Sprintf("%s/%s", bucketID, filePath)
-	_, err = fsm.s3Client.PutObjectWithContext(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(fsm.bucketName),
-		Key:         aws.String(s3Key),
-		Body:        bytes.NewReader(fileData.Content),
-		ContentType: aws.String(fileData.ContentType),
-	})
+	objectKey := fmt.Sprintf("%s/%s", bucketID, filePath)
+	_, err = fsm.objectStorage.PutObject(fsm.bucketName, objectKey, fileData.Content, &fileData.ContentType, nil)
 
 	return err
 }
@@ -154,12 +145,9 @@ func (fsm *FileSystemManager) cleanupZipFiles() {
 			}
 
 			if time.Since(time.Unix(timestamp, 0)) > zipExpiration {
-				// Extract S3 key from Redis key and delete from S3
-				s3Key := strings.TrimPrefix(key, "zip:")
-				fsm.s3Client.DeleteObject(&s3.DeleteObjectInput{
-					Bucket: aws.String(fsm.bucketName),
-					Key:    aws.String(s3Key),
-				})
+				// Extract object key from Redis key and delete from object storage
+				objectKey := strings.TrimPrefix(key, "zip:")
+				fsm.objectStorage.DeleteObject(fsm.bucketName, objectKey)
 
 				fsm.redis.Del(ctx, key)
 			}
