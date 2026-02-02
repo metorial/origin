@@ -1,14 +1,9 @@
 import { delay } from '@lowerdeck/delay';
-import { badRequestError, ServiceError } from '@lowerdeck/error';
+import { badRequestError, notFoundError, ServiceError } from '@lowerdeck/error';
 import { Service } from '@lowerdeck/service';
 import Long from 'long';
 import type { ScmRepository } from '../../prisma/generated/browser';
-import type {
-  CodeBucket,
-  CodeBucketPurpose,
-  CodeBucketTemplate,
-  Tenant
-} from '../../prisma/generated/client';
+import type { CodeBucket, CodeBucketTemplate, Tenant } from '../../prisma/generated/client';
 import { db } from '../db';
 import { getId } from '../id';
 import { codeBucketClient } from '../lib/codeWorkspace';
@@ -18,15 +13,25 @@ import { copyFromToBucketQueue } from '../queues/codeBucket/copyFromToBucket';
 import { exportGithubQueue } from '../queues/codeBucket/exportGithub';
 import { importGithubQueue } from '../queues/codeBucket/importGithub';
 import { importTemplateQueue } from '../queues/codeBucket/importTemplate';
+import { codeBucketPurposeService } from './codeBucketPurpose';
 
 let include = {
   repository: true
 };
 
 class codeBucketServiceImpl {
+  async getCodeBucketById(d: { tenant: Tenant; id: string }) {
+    let codeBucket = await db.codeBucket.findFirst({
+      where: { OR: [{ id: d.id }] },
+      include
+    });
+    if (!codeBucket) throw new ServiceError(notFoundError('codeBucket'));
+    return codeBucket;
+  }
+
   async createCodeBucket(d: {
     tenant: Tenant;
-    purpose: CodeBucketPurpose;
+    purpose: string;
     isReadOnly?: boolean;
     files?: {
       data: string;
@@ -38,7 +43,7 @@ class codeBucketServiceImpl {
       data: {
         ...getId('codeBucket'),
         tenantOid: d.tenant.oid,
-        purpose: d.purpose,
+        purposeOid: await codeBucketPurposeService.ensurePurpose(d),
         isReadOnly: d.isReadOnly
       },
       include
@@ -62,7 +67,7 @@ class codeBucketServiceImpl {
 
   async createCodeBucketFromRepo(d: {
     tenant: Tenant;
-    purpose: CodeBucketPurpose;
+    purpose: string;
     repo: ScmRepository;
     path?: string;
     ref?: string;
@@ -80,7 +85,7 @@ class codeBucketServiceImpl {
       data: {
         ...getId('codeBucket'),
         tenantOid: d.tenant.oid,
-        purpose: d.purpose,
+        purposeOid: await codeBucketPurposeService.ensurePurpose(d),
         repositoryOid: d.repo.oid,
         path: normalizePath(d.path ?? '/'),
         status: 'importing',
@@ -103,7 +108,7 @@ class codeBucketServiceImpl {
 
   async cloneCodeBucketTemplate(d: {
     tenant: Tenant;
-    purpose: CodeBucketPurpose;
+    purpose: string;
     template: CodeBucketTemplate;
     isReadOnly?: boolean;
   }) {
@@ -111,7 +116,7 @@ class codeBucketServiceImpl {
       data: {
         ...getId('codeBucket'),
         tenantOid: d.tenant.oid,
-        purpose: d.purpose,
+        purposeOid: await codeBucketPurposeService.ensurePurpose(d),
         templateOid: d.template.oid,
         isReadOnly: d.isReadOnly,
         status: 'importing'
@@ -155,7 +160,7 @@ class codeBucketServiceImpl {
       data: {
         ...getId('codeBucket'),
         tenantOid: d.codeBucket.tenantOid,
-        purpose: d.codeBucket.purpose,
+        purposeOid: d.codeBucket.purposeOid,
         parentOid: d.codeBucket.oid,
         isReadOnly: d.isReadOnly,
         status: 'importing'
@@ -198,10 +203,15 @@ class codeBucketServiceImpl {
       prefix: d.prefix ?? ''
     });
 
-    return res.files.map(f => ({
-      ...f.fileInfo,
-      content: f.content
-    }));
+    return res.files
+      .filter(f => f.fileInfo !== undefined)
+      .map(f => ({
+        path: f.fileInfo!.path,
+        size: f.fileInfo!.size,
+        contentType: f.fileInfo!.contentType,
+        modifiedAt: f.fileInfo!.modifiedAt,
+        content: f.content
+      }));
   }
 
   async getEditorToken(d: { codeBucket: CodeBucket }) {
@@ -253,7 +263,14 @@ class codeBucketServiceImpl {
       path: d.path
     });
 
-    return res.content;
+    if (!res.content || !res.content.fileInfo) {
+      throw new ServiceError(notFoundError('file'));
+    }
+
+    return {
+      ...res.content.fileInfo,
+      content: res.content.content
+    };
   }
 }
 

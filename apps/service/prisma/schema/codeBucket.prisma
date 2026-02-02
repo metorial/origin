@@ -1,5 +1,12 @@
-enum CodeBucketPurpose {
-  custom_server
+model CodeBucketPurpose {
+  oid BigInt @id @default(autoincrement())
+  id  String @unique
+
+  identifier String @unique
+
+  createdAt DateTime @default(now())
+
+  codeBuckets CodeBucket[]
 }
 
 enum CodeBucketStatus {
@@ -11,8 +18,10 @@ model CodeBucket {
   oid BigInt @id @default(autoincrement())
   id  String @unique
 
-  purpose CodeBucketPurpose
-  status  CodeBucketStatus  @default(ready)
+  purposeOid BigInt
+  purpose    CodeBucketPurpose @relation(fields: [purposeOid], references: [oid])
+
+  status CodeBucketStatus @default(ready)
 
   isReadOnly Boolean @default(false)
 

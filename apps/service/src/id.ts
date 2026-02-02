@@ -6,6 +6,7 @@ export let ID = createIdGenerator({
   actor: idType.sorted('oac_'),
 
   codeBucket: idType.sorted('ocb_'),
+  codeBucketPurpose: idType.sorted('ocp_'),
   codeBucketTemplate: idType.sorted('oct_'),
 
   scmAccount: idType.sorted('osa_'),
