@@ -20,14 +20,17 @@ export let importGithubQueue = createQueue<{
 export let importGithubQueueProcessor = importGithubQueue.process(async data => {
   let repo = await db.scmRepository.findFirstOrThrow({
     where: { id: data.repoId },
-    include: { installation: true }
+    include: { installation: { include: { backend: true } } }
   });
   if (!repo.installation.externalInstallationId) {
     throw new Error('Installation ID not found');
   }
 
   // Get a fresh installation access token
-  let token = await getInstallationAccessToken(repo.installation.externalInstallationId);
+  let token = await getInstallationAccessToken(
+    repo.installation.externalInstallationId,
+    repo.installation.backend
+  );
 
   await codeBucketClient.createBucketFromGithub({
     newBucketId: data.newBucketId,

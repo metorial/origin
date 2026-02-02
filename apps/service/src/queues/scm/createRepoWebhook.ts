@@ -13,14 +13,17 @@ export let createRepoWebhookQueue = createQueue<{ repoId: string }>({
 export let createRepoWebhookQueueProcessor = createRepoWebhookQueue.process(async data => {
   let repo = await db.scmRepository.findUnique({
     where: { id: data.repoId },
-    include: { installation: true }
+    include: { installation: { include: { backend: true } } }
   });
   if (!repo) throw new QueueRetryError();
   if (!repo.installation.externalInstallationId) {
     throw new Error('Installation ID not found');
   }
 
-  let octokit = await createGitHubInstallationClient(repo.installation.externalInstallationId);
+  let octokit = await createGitHubInstallationClient(
+    repo.installation.externalInstallationId,
+    repo.installation.backend
+  );
 
   let secret = generatePlainId(32);
   let webhookId = await ID.generateId('scmRepositoryWebhook');

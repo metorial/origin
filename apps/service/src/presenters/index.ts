@@ -4,6 +4,7 @@ export * from './codeBucket';
 export * from './codeBucketFile';
 export * from './repository';
 export * from './scmAccount';
+export * from './scmBackend';
 export * from './scmInstallation';
 export * from './scmRepoPreview';
 export * from './scmRepositoryPush';

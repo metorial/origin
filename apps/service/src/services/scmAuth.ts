@@ -1,9 +1,8 @@
 import { badRequestError, notFoundError, ServiceError } from '@lowerdeck/error';
 import { generatePlainId } from '@lowerdeck/id';
 import { Service } from '@lowerdeck/service';
-import type { Actor, ScmProvider, Tenant } from '../../prisma/generated/client';
+import type { Actor, ScmBackend, ScmProvider, Tenant } from '../../prisma/generated/client';
 import { db } from '../db';
-import { env } from '../env';
 import { getId } from '../id';
 import { createGitHubAppClient } from '../lib/githubApp';
 
@@ -12,22 +11,44 @@ class scmAuthServiceImpl {
     tenant: Tenant;
     actor: Actor;
     provider: 'github';
+    backendId: string;
     redirectUrl: string;
   }) {
+    let backend = await db.scmBackend.findFirst({
+      where: {
+        id: i.backendId,
+        OR: [{ tenantOid: i.tenant.oid }, { tenantOid: null }]
+      }
+    });
+
+    if (!backend) {
+      throw new ServiceError(notFoundError('scmBackend'));
+    }
+
     let attempt = await db.scmInstallationAttempt.create({
       data: {
         redirectUrl: i.redirectUrl,
         state: generatePlainId(30),
         tenantOid: i.tenant.oid,
+        backendOid: backend.oid,
         ownerActorOid: i.actor.oid
       }
     });
 
-    if (i.provider === 'github') {
+    if (i.provider === 'github' && backend.type === 'github') {
       // GitHub Apps use installation authorization flow
-      let url = new URL(
-        `https://github.com/apps/${env.gh.SCM_GITHUB_APP_ID}/installations/select_target`
-      );
+      let webUrl = backend.webUrl;
+      let appId = backend.appId;
+      let url = new URL(`${webUrl}/apps/${appId}/installations/select_target`);
+      url.searchParams.set('state', attempt.state);
+      return url.toString();
+    }
+
+    if (i.provider === 'github' && backend.type === 'github_enterprise') {
+      // GitHub Enterprise Apps use installation authorization flow
+      let webUrl = backend.webUrl;
+      let appId = backend.appId;
+      let url = new URL(`${webUrl}/apps/${appId}/installations/select_target`);
       url.searchParams.set('state', attempt.state);
       return url.toString();
     }
@@ -48,6 +69,9 @@ class scmAuthServiceImpl {
     let attempt = await db.scmInstallationAttempt.findUnique({
       where: {
         state: i.state
+      },
+      include: {
+        backend: true
       }
     });
     if (!attempt) {
@@ -60,7 +84,7 @@ class scmAuthServiceImpl {
 
     if (i.provider === 'github') {
       // Get installation details using GitHub App authentication
-      let octokit = createGitHubAppClient();
+      let octokit = createGitHubAppClient(attempt.backend);
 
       let installationRes = await octokit.request('GET /app/installations/{installation_id}', {
         installation_id: parseInt(i.installationId)
@@ -84,6 +108,7 @@ class scmAuthServiceImpl {
       let data = {
         provider: i.provider,
         tenantOid: attempt.tenantOid,
+        backendOid: attempt.backendOid,
         ownerActorOid: attempt.ownerActorOid,
 
         externalInstallationId: i.installationId,
@@ -98,9 +123,10 @@ class scmAuthServiceImpl {
 
       return db.scmInstallation.upsert({
         where: {
-          tenantOid_provider_externalAccountId: {
+          tenantOid_provider_backendOid_externalAccountId: {
             tenantOid: attempt.tenantOid,
             provider: i.provider,
+            backendOid: attempt.backendOid,
             externalAccountId: account.id.toString()
           }
         },

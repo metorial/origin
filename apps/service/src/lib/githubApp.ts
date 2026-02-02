@@ -1,32 +1,55 @@
 import { createAppAuth } from '@octokit/auth-app';
 import { Octokit } from '@octokit/core';
+import type { ScmBackend } from '../../prisma/generated/client';
 import { env } from '../env';
 
-export let createGitHubAppClient = () => {
+export let createGitHubAppClient = (backend?: ScmBackend) => {
+  let appId = backend?.appId ?? env.gh.SCM_GITHUB_APP_ID;
+  let privateKey = (backend?.appPrivateKey ?? env.gh.SCM_GITHUB_APP_PRIVATE_KEY).replace(
+    /\\n/g,
+    '\n'
+  );
+  let baseUrl = backend?.apiUrl ?? 'https://api.github.com';
+
   return new Octokit({
     authStrategy: createAppAuth,
     auth: {
-      appId: env.gh.SCM_GITHUB_APP_ID,
-      privateKey: env.gh.SCM_GITHUB_APP_PRIVATE_KEY.replace(/\\n/g, '\n')
-    }
+      appId,
+      privateKey
+    },
+    baseUrl
   });
 };
 
-export let createGitHubInstallationClient = async (installationId: string) => {
+export let createGitHubInstallationClient = async (
+  installationId: string,
+  backend?: ScmBackend
+) => {
+  let appId = backend?.appId ?? env.gh.SCM_GITHUB_APP_ID;
+  let privateKey = (backend?.appPrivateKey ?? env.gh.SCM_GITHUB_APP_PRIVATE_KEY).replace(
+    /\\n/g,
+    '\n'
+  );
+  let baseUrl = backend?.apiUrl ?? 'https://api.github.com';
+
   let octokit = new Octokit({
     authStrategy: createAppAuth,
     auth: {
-      appId: env.gh.SCM_GITHUB_APP_ID,
-      privateKey: env.gh.SCM_GITHUB_APP_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      appId,
+      privateKey,
       installationId: parseInt(installationId)
-    }
+    },
+    baseUrl
   });
 
   return octokit;
 };
 
-export let getInstallationAccessToken = async (installationId: string): Promise<string> => {
-  let octokit = createGitHubAppClient();
+export let getInstallationAccessToken = async (
+  installationId: string,
+  backend?: ScmBackend
+): Promise<string> => {
+  let octokit = createGitHubAppClient(backend);
 
   let response = await octokit.request(
     'POST /app/installations/{installation_id}/access_tokens',

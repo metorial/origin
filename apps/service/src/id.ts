@@ -11,10 +11,11 @@ export let ID = createIdGenerator({
 
   changeNotification: idType.sorted('ocn_'),
 
+  scmBackend: idType.sorted('osb_'),
   scmAccount: idType.sorted('osa_'),
   scmRepository: idType.sorted('osr_'),
   scmInstallation: idType.sorted('osi_'),
-  scmInstallationAttempt: idType.sorted('osb_'),
+  scmInstallationAttempt: idType.sorted('ost_'),
   scmRepositoryWebhook: idType.sorted('osw_'),
   scmRepositoryReceivedEvent: idType.sorted('ose_'),
   scmRepositoryPush: idType.sorted('osp_')

@@ -10,6 +10,9 @@ class ScmInstallationServiceImpl {
       where: {
         id: d.scmInstallationId,
         tenantOid: d.tenant.oid
+      },
+      include: {
+        backend: true
       }
     });
     if (!scmInstallation)

@@ -23,6 +23,7 @@ export let scmInstallationController = app.controller({
       v.object({
         tenantId: v.string(),
         actorId: v.string(),
+        backendId: v.string(),
         provider: v.enumOf(['github']),
         redirectUrl: v.string()
       })
@@ -33,6 +34,7 @@ export let scmInstallationController = app.controller({
       let url = await scmAuthService.getAuthorizationUrl({
         tenant: ctx.tenant,
         actor,
+        backendId: ctx.input.backendId,
         provider: ctx.input.provider,
         redirectUrl: ctx.input.redirectUrl
       });
