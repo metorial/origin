@@ -10,6 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 	"github.com/metorial/metorial/services/code-bucket/pkg/fs"
+	"github.com/metorial/metorial/services/code-bucket/pkg/util"
 )
 
 type HttpService struct {
@@ -105,7 +106,7 @@ func (hs *HttpService) handleGetFile(w http.ResponseWriter, r *http.Request) {
 	hs.setCorsHeaders(w)
 
 	vars := mux.Vars(r)
-	filePath := vars["path"]
+	filePath := util.NormalizePath(vars["path"])
 
 	// Authenticate
 	authBucketID, err := hs.authenticateRequest(r)
@@ -132,7 +133,7 @@ func (hs *HttpService) handlePutFile(w http.ResponseWriter, r *http.Request) {
 	hs.setCorsHeaders(w)
 
 	vars := mux.Vars(r)
-	filePath := vars["path"]
+	filePath := util.NormalizePath(vars["path"])
 
 	// Authenticate
 	authBucketID, err := hs.authenticateRequest(r)
@@ -165,7 +166,7 @@ func (hs *HttpService) handleDeleteFile(w http.ResponseWriter, r *http.Request) 
 	hs.setCorsHeaders(w)
 
 	vars := mux.Vars(r)
-	filePath := vars["path"]
+	filePath := util.NormalizePath(vars["path"])
 
 	// Authenticate
 	authBucketID, err := hs.authenticateRequest(r)

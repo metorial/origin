@@ -18,7 +18,7 @@ func (fsm *FileSystemManager) backgroundFlush() {
 }
 
 func (fsm *FileSystemManager) flushPendingFiles() {
-	log.Println("Flushing pending files to S3...")
+	log.Println("Flushing pending files to storage...")
 
 	ctx := context.Background()
 	pattern := "flush:*"
@@ -76,8 +76,8 @@ func (fsm *FileSystemManager) flushPendingFiles() {
 			defer func() { <-semaphore }() // Release semaphore
 			defer fsm.releaseLock(ctx, lockKey)
 
-			if err := fsm.flushFileToS3(ctx, bucketID, filePath); err != nil {
-				log.Printf("Error flushing file %s/%s to S3: %v", bucketID, filePath, err)
+			if err := fsm.flushFileToStorage(ctx, bucketID, filePath); err != nil {
+				log.Printf("Error flushing file %s/%s to storage: %v", bucketID, filePath, err)
 			} else {
 				fsm.redis.Del(ctx, key)
 			}
@@ -96,7 +96,7 @@ func (fsm *FileSystemManager) releaseLock(ctx context.Context, lockKey string) {
 	fsm.redis.Del(ctx, lockKey)
 }
 
-func (fsm *FileSystemManager) flushFileToS3(ctx context.Context, bucketID, filePath string) error {
+func (fsm *FileSystemManager) flushFileToStorage(ctx context.Context, bucketID, filePath string) error {
 	redisKey := fmt.Sprintf("bucket:%s:file:%s", bucketID, filePath)
 
 	result, err := fsm.redis.Get(ctx, redisKey).Result()

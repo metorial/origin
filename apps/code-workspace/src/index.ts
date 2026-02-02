@@ -9,13 +9,13 @@ declare global {
 let queryParams = new URLSearchParams(window.location.search);
 let id = queryParams.get('id');
 let token = queryParams.get('token');
-if (!id || !token) {
-  console.error('Missing id or token in query parameters');
-  throw new Error('Missing id or token in query parameters');
+let url = queryParams.get('url');
+if (!id || !token || !url) {
+  console.error('Missing id, url, or token in query parameters');
+  throw new Error('Missing id, url, or token in query parameters');
 }
 
 let projectName = queryParams.get('projectName') || 'Metorial Project';
-let url = (import.meta as any).env.VITE_CODE_BUCKET_API_URL;
 
 let tokenData = decodeJwtPayload(token);
 let isReadOnly = tokenData.is_read_only;
