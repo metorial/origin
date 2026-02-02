@@ -23,6 +23,23 @@ export let scmController = createHono()
 
     return c.html(completeDashboardHtml());
   })
+  .get('/origin/oauth/gitlab/callback', async c => {
+    let query = await useValidatedQuery(
+      c,
+      v.object({
+        code: v.string(),
+        state: v.string()
+      })
+    );
+
+    await scmAuthService.handleGitLabOAuthCallback({
+      code: query.code,
+      state: query.state,
+      provider: 'gitlab'
+    });
+
+    return c.html(completeDashboardHtml());
+  })
   .post('/origin/webhook-ingest/gh/:webhookId', async c => {
     let webhookId = c.req.param('webhookId');
 
@@ -41,4 +58,27 @@ export let scmController = createHono()
       webhookId,
       payload: await c.req.text()
     });
+
+    return c.text('OK');
+  })
+  .post('/origin/webhook-ingest/gl/:webhookId', async c => {
+    let webhookId = c.req.param('webhookId');
+
+    let eventType = c.req.header('X-Gitlab-Event');
+    let token = c.req.header('X-Gitlab-Token');
+    let idempotencyKey = c.req.header('X-Gitlab-Event-UUID');
+
+    if (!eventType || !token || !idempotencyKey) {
+      return c.text('Missing params', 400);
+    }
+
+    await scmRepoService.receiveGitLabWebhookEvent({
+      idempotencyKey,
+      eventType,
+      token,
+      webhookId,
+      payload: await c.req.text()
+    });
+
+    return c.text('OK');
   });

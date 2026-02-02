@@ -24,7 +24,7 @@ export let scmInstallationController = app.controller({
         tenantId: v.string(),
         actorId: v.string(),
         backendId: v.string(),
-        provider: v.enumOf(['github']),
+        provider: v.enumOf(['github', 'gitlab']),
         redirectUrl: v.string()
       })
     )

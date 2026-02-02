@@ -4,6 +4,7 @@ import { db } from '../../db';
 import { env } from '../../env';
 import { ID } from '../../id';
 import { createGitHubInstallationClient } from '../../lib/githubApp';
+import { createGitLabClientWithToken } from '../../lib/gitlab';
 
 export let createRepoWebhookQueue = createQueue<{ repoId: string }>({
   name: 'ori/rep/wh-cr',
@@ -16,14 +17,6 @@ export let createRepoWebhookQueueProcessor = createRepoWebhookQueue.process(asyn
     include: { installation: { include: { backend: true } } }
   });
   if (!repo) throw new QueueRetryError();
-  if (!repo.installation.externalInstallationId) {
-    throw new Error('Installation ID not found');
-  }
-
-  let octokit = await createGitHubInstallationClient(
-    repo.installation.externalInstallationId,
-    repo.installation.backend
-  );
 
   let secret = generatePlainId(32);
   let webhookId = await ID.generateId('scmRepositoryWebhook');
@@ -33,30 +26,71 @@ export let createRepoWebhookQueueProcessor = createRepoWebhookQueue.process(asyn
   });
   if (existingWebhook) return;
 
-  let whRes = await octokit.request('POST /repos/{owner}/{repo}/hooks', {
-    owner: repo.externalOwner,
-    repo: repo.externalName,
-    config: {
-      url: `${env.service.ORIGIN_SERVICE_URL}/origin/scm/webhook-ingest/gh/${webhookId}`,
-      content_type: 'json',
-      secret,
-      insecure_ssl: '0'
-    },
-    events: ['push'],
-    active: true
-  });
+  if (repo.provider === 'github') {
+    if (!repo.installation.externalInstallationId) {
+      throw new Error('Installation ID not found');
+    }
 
-  await db.scmRepositoryWebhook.upsert({
-    where: {
-      repoOid: repo.oid
-    },
-    create: {
-      id: webhookId,
-      repoOid: repo.oid,
-      externalId: whRes.data.id.toString(),
-      signingSecret: secret,
-      type: 'push'
-    },
-    update: {}
-  });
+    let octokit = await createGitHubInstallationClient(
+      repo.installation.externalInstallationId,
+      repo.installation.backend
+    );
+
+    let whRes = await octokit.request('POST /repos/{owner}/{repo}/hooks', {
+      owner: repo.externalOwner,
+      repo: repo.externalName,
+      config: {
+        url: `${env.service.ORIGIN_SERVICE_URL}/origin/scm/webhook-ingest/gh/${webhookId}`,
+        content_type: 'json',
+        secret,
+        insecure_ssl: '0'
+      },
+      events: ['push'],
+      active: true
+    });
+
+    await db.scmRepositoryWebhook.upsert({
+      where: {
+        repoOid: repo.oid
+      },
+      create: {
+        id: webhookId,
+        repoOid: repo.oid,
+        externalId: whRes.data.id.toString(),
+        signingSecret: secret,
+        type: 'push'
+      },
+      update: {}
+    });
+  }
+
+  if (repo.provider === 'gitlab') {
+    if (!repo.installation.accessToken) {
+      throw new Error('Access token not found');
+    }
+
+    let gitlab = createGitLabClientWithToken(
+      repo.installation.accessToken,
+      repo.installation.backend
+    );
+
+    let hook = await gitlab.ProjectHooks.add(parseInt(repo.externalId), `${env.service.ORIGIN_SERVICE_URL}/origin/scm/webhook-ingest/gl/${webhookId}`, {
+      pushEvents: true,
+      token: secret
+    });
+
+    await db.scmRepositoryWebhook.upsert({
+      where: {
+        repoOid: repo.oid
+      },
+      create: {
+        id: webhookId,
+        repoOid: repo.oid,
+        externalId: hook.id.toString(),
+        signingSecret: secret,
+        type: 'push'
+      },
+      update: {}
+    });
+  }
 });

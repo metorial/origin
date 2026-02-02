@@ -11,7 +11,9 @@ import { normalizePath } from '../lib/normalizePath';
 import { cloneBucketQueue } from '../queues/codeBucket/cloneBucket';
 import { copyFromToBucketQueue } from '../queues/codeBucket/copyFromToBucket';
 import { exportGithubQueue } from '../queues/codeBucket/exportGithub';
+import { exportGitlabQueue } from '../queues/codeBucket/exportGitlab';
 import { importGithubQueue } from '../queues/codeBucket/importGithub';
+import { importGitlabQueue } from '../queues/codeBucket/importGitlab';
 import { importTemplateQueue } from '../queues/codeBucket/importTemplate';
 import { codeBucketPurposeService } from './codeBucketPurpose';
 
@@ -74,14 +76,6 @@ class codeBucketServiceImpl {
     isReadOnly?: boolean;
     isSynced?: boolean;
   }) {
-    if (d.repo.provider != 'github') {
-      throw new ServiceError(
-        badRequestError({
-          message: 'Only GitHub repositories are supported'
-        })
-      );
-    }
-
     let ref = d.ref ?? d.repo.defaultBranch ?? 'main';
 
     let codeBucket = await db.codeBucket.create({
@@ -99,14 +93,31 @@ class codeBucketServiceImpl {
       include
     });
 
-    await importGithubQueue.add({
-      newBucketId: codeBucket.id,
-      owner: d.repo.externalOwner,
-      path: d.path ?? '/',
-      repo: d.repo.externalName,
-      ref,
-      repoId: d.repo.id
-    });
+    if (d.repo.provider === 'github') {
+      await importGithubQueue.add({
+        newBucketId: codeBucket.id,
+        owner: d.repo.externalOwner,
+        path: d.path ?? '/',
+        repo: d.repo.externalName,
+        ref,
+        repoId: d.repo.id
+      });
+    } else if (d.repo.provider === 'gitlab') {
+      await importGitlabQueue.add({
+        newBucketId: codeBucket.id,
+        owner: d.repo.externalOwner,
+        path: d.path ?? '/',
+        repo: d.repo.externalName,
+        ref,
+        repoId: d.repo.id
+      });
+    } else {
+      throw new ServiceError(
+        badRequestError({
+          message: 'Unsupported repository provider'
+        })
+      );
+    }
 
     return codeBucket;
   }
@@ -120,28 +131,37 @@ class codeBucketServiceImpl {
       );
     }
 
-    if (d.repo.provider != 'github') {
-      throw new ServiceError(
-        badRequestError({
-          message: 'Only GitHub repositories are supported'
-        })
-      );
-    }
-
     // Set status to importing to prevent clone conflicts
     await db.codeBucket.update({
       where: { oid: d.codeBucket.oid },
       data: { status: 'importing' }
     });
 
-    await importGithubQueue.add({
-      newBucketId: d.codeBucket.id,
-      owner: d.repo.externalOwner,
-      path: d.codeBucket.path ?? '/',
-      repo: d.repo.externalName,
-      ref: d.codeBucket.syncRef ?? d.repo.defaultBranch ?? 'main',
-      repoId: d.repo.id
-    });
+    if (d.repo.provider === 'github') {
+      await importGithubQueue.add({
+        newBucketId: d.codeBucket.id,
+        owner: d.repo.externalOwner,
+        path: d.codeBucket.path ?? '/',
+        repo: d.repo.externalName,
+        ref: d.codeBucket.syncRef ?? d.repo.defaultBranch ?? 'main',
+        repoId: d.repo.id
+      });
+    } else if (d.repo.provider === 'gitlab') {
+      await importGitlabQueue.add({
+        newBucketId: d.codeBucket.id,
+        owner: d.repo.externalOwner,
+        path: d.codeBucket.path ?? '/',
+        repo: d.repo.externalName,
+        ref: d.codeBucket.syncRef ?? d.repo.defaultBranch ?? 'main',
+        repoId: d.repo.id
+      });
+    } else {
+      throw new ServiceError(
+        badRequestError({
+          message: 'Unsupported repository provider'
+        })
+      );
+    }
   }
 
   async cloneCodeBucketTemplate(d: {
@@ -213,24 +233,39 @@ class codeBucketServiceImpl {
     return codeBucket;
   }
 
+  async exportCodeBucketToRepo(d: {
+    codeBucket: CodeBucket;
+    repo: ScmRepository;
+    path: string;
+  }) {
+    if (d.repo.provider === 'github') {
+      await exportGithubQueue.add({
+        bucketId: d.codeBucket.id,
+        repoId: d.repo.id,
+        path: d.path
+      });
+    } else if (d.repo.provider === 'gitlab') {
+      await exportGitlabQueue.add({
+        bucketId: d.codeBucket.id,
+        repoId: d.repo.id,
+        path: d.path
+      });
+    } else {
+      throw new ServiceError(
+        badRequestError({
+          message: 'Unsupported repository provider'
+        })
+      );
+    }
+  }
+
+  // Deprecated: Use exportCodeBucketToRepo instead
   async exportCodeBucketToGithub(d: {
     codeBucket: CodeBucket;
     repo: ScmRepository;
     path: string;
   }) {
-    if (d.repo.provider != 'github') {
-      throw new ServiceError(
-        badRequestError({
-          message: 'Only GitHub repositories are supported'
-        })
-      );
-    }
-
-    await exportGithubQueue.add({
-      bucketId: d.codeBucket.id,
-      repoId: d.repo.id,
-      path: d.path
-    });
+    return this.exportCodeBucketToRepo(d);
   }
 
   async getCodeBucketFilesWithContent(d: { codeBucket: CodeBucket; prefix?: string }) {

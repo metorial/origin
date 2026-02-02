@@ -1,5 +1,6 @@
 enum ScmProvider {
   github
+  gitlab
 }
 
 enum ScmAccountType {
@@ -82,15 +83,16 @@ model ScmInstallation {
   tenantOid BigInt
   tenant    Tenant @relation(fields: [tenantOid], references: [oid], onDelete: Cascade)
 
-  // GitHub App Installation
-  externalInstallationId String? // GitHub App installation ID
-  accountType            ScmAccountType? // user or organization
+  externalInstallationId String?
+  accountType            ScmAccountType?
 
-  // Account info (for both OAuth and App)
-  externalAccountId    String // Account ID (user or org)
-  externalAccountLogin String // Account login (username or org name)
-  externalAccountName  String? // Display name
-  externalAccountEmail String?
+  accessToken  String?
+  refreshToken String?
+
+  externalAccountId       String
+  externalAccountLogin    String
+  externalAccountName     String?
+  externalAccountEmail    String?
   externalAccountImageUrl String?
 
   createdAt DateTime @default(now())
