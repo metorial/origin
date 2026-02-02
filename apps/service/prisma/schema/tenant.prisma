@@ -8,6 +8,7 @@ model Tenant {
   createdAt DateTime @default(now())
 
   scmAccounts             ScmAccount[]
+  scmBackends             ScmBackend[]
   scmInstallations        ScmInstallation[]
   scmInstallationAttempts ScmInstallationAttempt[]
   codeBuckets             CodeBucket[]

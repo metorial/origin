@@ -73,6 +73,9 @@ model ScmInstallation {
 
   provider ScmProvider
 
+  backendOid BigInt
+  backend    ScmBackend @relation(fields: [backendOid], references: [oid], onDelete: Cascade)
+
   ownerActorOid BigInt
   ownerActor    Actor  @relation(fields: [ownerActorOid], references: [oid], onDelete: Cascade)
 
@@ -95,7 +98,7 @@ model ScmInstallation {
 
   repos ScmRepository[]
 
-  @@unique([tenantOid, provider, externalAccountId])
+  @@unique([tenantOid, provider, backendOid, externalAccountId])
 }
 
 model ScmInstallationAttempt {
@@ -103,6 +106,9 @@ model ScmInstallationAttempt {
 
   redirectUrl String
   state       String @unique
+
+  backendOid BigInt
+  backend    ScmBackend @relation(fields: [backendOid], references: [oid], onDelete: Cascade)
 
   tenantOid BigInt
   tenant    Tenant @relation(fields: [tenantOid], references: [oid], onDelete: Cascade)

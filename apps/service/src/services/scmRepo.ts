@@ -1,7 +1,12 @@
 import { badRequestError, ServiceError } from '@lowerdeck/error';
 import { Service } from '@lowerdeck/service';
 import crypto from 'crypto';
-import type { ScmInstallation, ScmRepository, Tenant } from '../../prisma/generated/client';
+import type {
+  ScmBackend,
+  ScmInstallation,
+  ScmRepository,
+  Tenant
+} from '../../prisma/generated/client';
 import { db } from '../db';
 import { getId } from '../id';
 import { createRepoWebhookQueue } from '../queues/scm/createRepoWebhook';
@@ -10,12 +15,12 @@ import type { ScmAccountPreview, ScmRepoPreview } from '../types';
 import { createGitHubInstallationClient } from '../lib/githubApp';
 
 class scmRepoServiceImpl {
-  async listAccountPreviews(i: { installation: ScmInstallation }) {
+  async listAccountPreviews(i: { installation: ScmInstallation & { backend: ScmBackend } }) {
     if (i.installation.provider == 'github') {
       if (!i.installation.externalInstallationId) {
         throw new ServiceError(badRequestError({ message: 'Installation ID not found' }));
       }
-      let octokit = await createGitHubInstallationClient(i.installation.externalInstallationId);
+      let octokit = await createGitHubInstallationClient(i.installation.externalInstallationId, i.installation.backend);
 
       let orgs = await octokit.request('GET /user/orgs', {
         per_page: 100
@@ -46,14 +51,14 @@ class scmRepoServiceImpl {
   }
 
   async listRepositoryPreviews(i: {
-    installation: ScmInstallation;
+    installation: ScmInstallation & { backend: ScmBackend };
     externalAccountId?: string;
   }) {
     if (i.installation.provider == 'github') {
       if (!i.installation.externalInstallationId) {
         throw new ServiceError(badRequestError({ message: 'Installation ID not found' }));
       }
-      let octokit = await createGitHubInstallationClient(i.installation.externalInstallationId);
+      let octokit = await createGitHubInstallationClient(i.installation.externalInstallationId, i.installation.backend);
 
       let allRepos: any[] = [];
       let page = 1;
@@ -102,12 +107,15 @@ class scmRepoServiceImpl {
     throw new ServiceError(badRequestError({ message: 'Unsupported provider' }));
   }
 
-  async linkRepository(i: { installation: ScmInstallation; externalId: string }) {
+  async linkRepository(i: {
+    installation: ScmInstallation & { backend: ScmBackend };
+    externalId: string;
+  }) {
     if (i.installation.provider == 'github') {
       if (!i.installation.externalInstallationId) {
         throw new ServiceError(badRequestError({ message: 'Installation ID not found' }));
       }
-      let octokit = await createGitHubInstallationClient(i.installation.externalInstallationId);
+      let octokit = await createGitHubInstallationClient(i.installation.externalInstallationId, i.installation.backend);
 
       let repoRes = await octokit.request('GET /repositories/{repository_id}', {
         repository_id: parseInt(i.externalId)
@@ -182,7 +190,7 @@ class scmRepoServiceImpl {
   }
 
   async createRepository(i: {
-    installation: ScmInstallation;
+    installation: ScmInstallation & { backend: ScmBackend };
     externalAccountId: string;
     name: string;
     description?: string;
@@ -192,7 +200,7 @@ class scmRepoServiceImpl {
       if (!i.installation.externalInstallationId) {
         throw new ServiceError(badRequestError({ message: 'Installation ID not found' }));
       }
-      let octokit = await createGitHubInstallationClient(i.installation.externalInstallationId);
+      let octokit = await createGitHubInstallationClient(i.installation.externalInstallationId, i.installation.backend);
 
       let repoRes =
         i.externalAccountId == i.installation.externalAccountId
@@ -315,12 +323,13 @@ class scmRepoServiceImpl {
   async createPushForCurrentCommitOnDefaultBranch(i: { repo: ScmRepository }) {
     if (i.repo.provider == 'github') {
       let installation = await db.scmInstallation.findUniqueOrThrow({
-        where: { oid: i.repo.installationOid }
+        where: { oid: i.repo.installationOid },
+        include: { backend: true }
       });
       if (!installation.externalInstallationId) {
         throw new ServiceError(badRequestError({ message: 'Installation ID not found' }));
       }
-      let octokit = await createGitHubInstallationClient(installation.externalInstallationId);
+      let octokit = await createGitHubInstallationClient(installation.externalInstallationId, installation.backend);
 
       try {
         let refRes = await octokit.request(
