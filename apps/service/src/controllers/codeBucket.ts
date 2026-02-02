@@ -1,3 +1,4 @@
+import { badRequestError, ServiceError } from '@lowerdeck/error';
 import { v } from '@lowerdeck/validation';
 import { env } from '../env';
 import { codeBucketPresenter } from '../presenters/codeBucket';
@@ -75,7 +76,8 @@ export let codeBucketController = app.controller({
         purpose: v.string(),
         path: v.optional(v.string()),
         ref: v.optional(v.string()),
-        isReadOnly: v.optional(v.boolean())
+        isReadOnly: v.optional(v.boolean()),
+        isSynced: v.optional(v.boolean())
       })
     )
     .do(async ctx => {
@@ -90,7 +92,8 @@ export let codeBucketController = app.controller({
         repo,
         path: ctx.input.path,
         ref: ctx.input.ref,
-        isReadOnly: ctx.input.isReadOnly
+        isReadOnly: ctx.input.isReadOnly,
+        isSynced: ctx.input.isSynced
       });
 
       return codeBucketPresenter(codeBucket);
@@ -117,6 +120,36 @@ export let codeBucketController = app.controller({
       });
 
       await codeBucketService.syncCodeBuckets({ source, target });
+
+      return { success: true };
+    }),
+
+  enableSyncFromRepo: codeBucketApp
+    .handler()
+    .input(
+      v.object({
+        tenantId: v.string(),
+        codeBucketId: v.string()
+      })
+    )
+    .do(async ctx => {
+      if (!ctx.codeBucket.repositoryOid) {
+        throw new ServiceError(
+          badRequestError({
+            message: 'Code bucket is not linked to a repository'
+          })
+        );
+      }
+
+      let repo = await scmRepoService.getScmRepoById({
+        tenant: ctx.tenant,
+        scmRepoId: ctx.codeBucket.repository!.id
+      });
+
+      await codeBucketService.syncCodeBucketFromRepo({
+        codeBucket: ctx.codeBucket,
+        repo
+      });
 
       return { success: true };
     }),

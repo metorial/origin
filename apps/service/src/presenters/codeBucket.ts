@@ -11,6 +11,9 @@ export let codeBucketPresenter = (
   isReadOnly: codeBucket.isReadOnly,
   path: codeBucket.path,
 
+  isSynced: codeBucket.isSynced,
+  syncRef: codeBucket.syncRef,
+
   repository: codeBucket.repository ? repositoryPresenter(codeBucket.repository) : undefined,
 
   createdAt: codeBucket.createdAt

@@ -22,7 +22,6 @@ export let importGithubQueueProcessor = importGithubQueue.process(async data => 
     where: { id: data.repoId },
     include: { installation: true }
   });
-
   if (!repo.installation.externalInstallationId) {
     throw new Error('Installation ID not found');
   }

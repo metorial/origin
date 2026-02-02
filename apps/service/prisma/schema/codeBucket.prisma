@@ -39,6 +39,9 @@ model CodeBucket {
   repository    ScmRepository? @relation(fields: [repositoryOid], references: [oid])
   path          String?
 
+  isSynced Boolean @default(false)
+  syncRef  String?
+
   createdAt DateTime @default(now())
 
   providerFor CodeBucketTemplate[] @relation("ProviderBucket")
