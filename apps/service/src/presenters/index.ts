@@ -6,5 +6,8 @@ export * from './eventDeliveryAttempt';
 export * from './eventDeliveryIntent';
 export * from './eventDestination';
 export * from './repository';
+export * from './scmAccount';
+export * from './scmInstallation';
+export * from './scmRepoPreview';
 export * from './sender';
 export * from './tenant';
