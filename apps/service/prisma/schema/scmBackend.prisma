@@ -1,6 +1,8 @@
 enum ScmBackendType {
   github
   github_enterprise
+  gitlab
+  gitlab_selfhosted
 }
 
 model ScmBackend {
@@ -9,21 +11,18 @@ model ScmBackend {
 
   type ScmBackendType
 
-  // Display information
   name        String
   description String?
 
-  // API endpoints
-  apiUrl String // e.g., "https://api.github.com" or "https://github.company.com/api/v3"
-  webUrl String // e.g., "https://github.com" or "https://github.company.com"
+  apiUrl String // e.g., "https://api.github.com", "https://gitlab.com/api/v4", "https://gitlab.company.com/api/v4"
+  webUrl String // e.g., "https://github.com", "https://gitlab.com", "https://gitlab.company.com"
 
-  // GitHub App credentials (for GitHub and GitHub Enterprise)
   appId         String?
   appPrivateKey String?
-  clientId      String?
-  clientSecret  String?
 
-  // Tenant-specific or global
+  clientId     String?
+  clientSecret String?
+
   tenantOid BigInt?
   tenant    Tenant? @relation(fields: [tenantOid], references: [oid], onDelete: Cascade)
 

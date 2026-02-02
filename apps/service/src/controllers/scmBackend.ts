@@ -49,13 +49,13 @@ export let scmBackendController = app.controller({
     .input(
       v.object({
         tenantId: v.string(),
-        type: v.enumOf(['github_enterprise']),
+        type: v.enumOf(['github_enterprise', 'gitlab_selfhosted']),
         name: v.string(),
         description: v.optional(v.string()),
         apiUrl: v.string(),
         webUrl: v.string(),
-        appId: v.string(),
-        appPrivateKey: v.string(),
+        appId: v.optional(v.string()),
+        appPrivateKey: v.optional(v.string()),
         clientId: v.string(),
         clientSecret: v.string()
       })

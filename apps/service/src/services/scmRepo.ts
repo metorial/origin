@@ -13,6 +13,7 @@ import { createRepoWebhookQueue } from '../queues/scm/createRepoWebhook';
 import { createHandleRepoPushQueue } from '../queues/scm/handleRepoPush';
 import type { ScmAccountPreview, ScmRepoPreview } from '../types';
 import { createGitHubInstallationClient } from '../lib/githubApp';
+import { createGitLabClientWithToken } from '../lib/gitlab';
 
 class scmRepoServiceImpl {
   async listAccountPreviews(i: { installation: ScmInstallation & { backend: ScmBackend } }) {
@@ -42,6 +43,35 @@ class scmRepoServiceImpl {
               externalId: o.id.toString(),
               name: o.login,
               identifier: `github.com/${o.login}`
+            }) satisfies ScmAccountPreview
+        )
+      ];
+    }
+
+    if (i.installation.provider == 'gitlab') {
+      if (!i.installation.accessToken) {
+        throw new ServiceError(badRequestError({ message: 'Access token not found' }));
+      }
+      let gitlab = createGitLabClientWithToken(i.installation.accessToken, i.installation.backend);
+
+      // Get user's groups/namespaces
+      let groups = await gitlab.Groups.all({ minAccessLevel: 10, perPage: 100 });
+      let user = await gitlab.Users.showCurrentUser();
+
+      return [
+        {
+          provider: i.installation.provider,
+          externalId: user.id.toString(),
+          name: user.username,
+          identifier: `${new URL(i.installation.backend.webUrl).hostname}/${user.username}`
+        } satisfies ScmAccountPreview,
+        ...groups.map(
+          g =>
+            ({
+              provider: i.installation.provider,
+              externalId: g.id.toString(),
+              name: g.path,
+              identifier: `${new URL(i.installation.backend.webUrl).hostname}/${g.full_path}`
             }) satisfies ScmAccountPreview
         )
       ];
@@ -98,6 +128,45 @@ class scmRepoServiceImpl {
               externalId: i.externalAccountId!,
               name: r.owner.login,
               identifier: `github.com/${r.owner.login}`,
+              provider: i.installation.provider
+            }
+          }) satisfies ScmRepoPreview
+      );
+    }
+
+    if (i.installation.provider == 'gitlab') {
+      if (!i.installation.accessToken) {
+        throw new ServiceError(badRequestError({ message: 'Access token not found' }));
+      }
+      let gitlab = createGitLabClientWithToken(i.installation.accessToken, i.installation.backend);
+
+      let allProjects: any[] = [];
+
+      // If external account ID matches user ID, list user's projects; otherwise list group projects
+      if (i.externalAccountId == i.installation.externalAccountId) {
+        allProjects = await gitlab.Projects.all({ membership: true, perPage: 100 });
+      } else {
+        // List projects for a specific group
+        let groupId = parseInt(i.externalAccountId!);
+        allProjects = await gitlab.Groups.allProjects(groupId, { perPage: 100 });
+      }
+
+      let hostname = new URL(i.installation.backend.webUrl).hostname;
+
+      return allProjects.map(
+        (p: any) =>
+          ({
+            provider: i.installation.provider,
+            name: p.name,
+            identifier: `${hostname}/${p.path_with_namespace}`,
+            externalId: p.id.toString(),
+            createdAt: p.created_at ? new Date(p.created_at) : new Date(),
+            updatedAt: p.updated_at ? new Date(p.updated_at) : new Date(),
+            lastPushedAt: p.last_activity_at ? new Date(p.last_activity_at) : null,
+            account: {
+              externalId: i.externalAccountId!,
+              name: p.namespace.path,
+              identifier: `${hostname}/${p.namespace.full_path}`,
               provider: i.installation.provider
             }
           }) satisfies ScmRepoPreview
@@ -186,6 +255,81 @@ class scmRepoServiceImpl {
       return repo;
     }
 
+    if (i.installation.provider == 'gitlab') {
+      if (!i.installation.accessToken) {
+        throw new ServiceError(badRequestError({ message: 'Access token not found' }));
+      }
+      let gitlab = createGitLabClientWithToken(i.installation.accessToken, i.installation.backend);
+
+      let project = await gitlab.Projects.show(parseInt(i.externalId));
+
+      let hostname = new URL(i.installation.backend.webUrl).hostname;
+
+      let accountData = {
+        name: project.namespace.name,
+        identifier: `${hostname}/${project.namespace.full_path}`,
+        provider: i.installation.provider,
+        type:
+          project.namespace.kind === 'user'
+            ? ('user' as const)
+            : ('organization' as const),
+        externalId: project.namespace.id.toString()
+      };
+
+      let account = await db.scmAccount.upsert({
+        where: {
+          tenantOid_provider_externalId: {
+            tenantOid: i.installation.tenantOid,
+            provider: i.installation.provider,
+            externalId: project.namespace.id.toString()
+          }
+        },
+        update: accountData,
+        create: {
+          ...getId('scmAccount'),
+          tenantOid: i.installation.tenantOid,
+          ...accountData
+        }
+      });
+
+      let repoData = {
+        name: project.name,
+        identifier: `${hostname}/${project.path_with_namespace}`,
+        provider: i.installation.provider,
+        externalId: project.id.toString(),
+        tenantOid: i.installation.tenantOid,
+        accountOid: account.oid,
+        installationOid: i.installation.oid,
+        externalIsPrivate: project.visibility === 'private',
+        externalName: project.path,
+        defaultBranch: project.default_branch,
+        externalOwner: project.namespace.path,
+        externalUrl: project.web_url
+      };
+
+      let repo = await db.scmRepository.upsert({
+        where: {
+          tenantOid_provider_externalId: {
+            tenantOid: i.installation.tenantOid,
+            provider: i.installation.provider,
+            externalId: i.externalId
+          }
+        },
+        update: repoData,
+        create: {
+          ...getId('scmRepository'),
+          ...repoData
+        },
+        include: {
+          account: true
+        }
+      });
+
+      await createRepoWebhookQueue.add({ repoId: repo.id });
+
+      return repo;
+    }
+
     throw new ServiceError(badRequestError({ message: 'Unsupported provider' }));
   }
 
@@ -219,6 +363,32 @@ class scmRepoServiceImpl {
       return await this.linkRepository({
         installation: i.installation,
         externalId: repoRes.data.id.toString()
+      });
+    }
+
+    if (i.installation.provider == 'gitlab') {
+      if (!i.installation.accessToken) {
+        throw new ServiceError(badRequestError({ message: 'Access token not found' }));
+      }
+      let gitlab = createGitLabClientWithToken(i.installation.accessToken, i.installation.backend);
+
+      let projectRes =
+        i.externalAccountId == i.installation.externalAccountId
+          ? await gitlab.Projects.create({
+              name: i.name,
+              description: i.description,
+              visibility: i.isPrivate ? 'private' : 'public'
+            })
+          : await gitlab.Projects.create({
+              name: i.name,
+              description: i.description,
+              visibility: i.isPrivate ? 'private' : 'public',
+              namespaceId: parseInt(i.externalAccountId)
+            });
+
+      return await this.linkRepository({
+        installation: i.installation,
+        externalId: projectRes.id.toString()
       });
     }
 
@@ -320,6 +490,81 @@ class scmRepoServiceImpl {
     throw new ServiceError(badRequestError({ message: 'Unsupported provider' }));
   }
 
+  async receiveGitLabWebhookEvent(i: {
+    webhookId: string;
+    idempotencyKey: string;
+    eventType: string;
+    payload: string;
+    token: string;
+  }) {
+    let webhook = await db.scmRepositoryWebhook.findUnique({
+      where: { id: i.webhookId },
+      include: { repo: { include: { installation: { include: { backend: true } } } } }
+    });
+    if (!webhook) {
+      throw new ServiceError(badRequestError({ message: 'Invalid webhook' }));
+    }
+
+    // Verify token
+    if (i.token !== webhook.signingSecret) {
+      throw new ServiceError(badRequestError({ message: 'Invalid token' }));
+    }
+
+    let event = JSON.parse(i.payload) as {
+      object_kind: string;
+      ref: string;
+      before: string;
+      after: string;
+      user_username: string;
+      user_email: string;
+      user_name: string;
+      project: { id: number; name: string; path_with_namespace: string; default_branch: string };
+      commits: {
+        id: string;
+        message: string;
+        timestamp: string;
+        url: string;
+        author: { name: string; email: string };
+      }[];
+    };
+
+    if (webhook.repo.provider == 'gitlab') {
+      await db.scmRepositoryWebhookReceivedEvent.create({
+        data: {
+          webhookOid: webhook.oid,
+          eventType: i.eventType,
+          payload: i.payload,
+          idempotencyKey: i.idempotencyKey
+        }
+      });
+
+      let branchName = event.ref?.replace('refs/heads/', '');
+
+      if (i.eventType == 'Push Hook' && branchName == webhook.repo.defaultBranch) {
+        let hostname = new URL(webhook.repo.installation.backend.webUrl).hostname;
+
+        let push = await db.scmRepositoryPush.create({
+          data: {
+            ...getId('scmRepositoryPush'),
+            repoOid: webhook.repo.oid,
+            tenantOid: webhook.repo.tenantOid,
+
+            sha: event.after,
+            branchName: webhook.repo.defaultBranch,
+
+            pusherEmail: event.user_email,
+            pusherName: event.user_name,
+
+            senderIdentifier: `${hostname}/${event.user_username}`,
+            commitMessage: event.commits?.[0]?.message || null
+          }
+        });
+
+        await createHandleRepoPushQueue.add({ pushId: push.id });
+      }
+    }
+  }
+
   async createPushForCurrentCommitOnDefaultBranch(i: { repo: ScmRepository }) {
     if (i.repo.provider == 'github') {
       let installation = await db.scmInstallation.findUniqueOrThrow({
@@ -369,6 +614,58 @@ class scmRepoServiceImpl {
         return push;
       } catch (e: any) {
         if (e.message.includes('Git Repository is empty')) {
+          return null;
+        }
+
+        throw e;
+      }
+    }
+
+    if (i.repo.provider == 'gitlab') {
+      let installation = await db.scmInstallation.findUniqueOrThrow({
+        where: { oid: i.repo.installationOid },
+        include: { backend: true }
+      });
+      if (!installation.accessToken) {
+        throw new ServiceError(badRequestError({ message: 'Access token not found' }));
+      }
+      let gitlab = createGitLabClientWithToken(installation.accessToken, installation.backend);
+
+      try {
+        let commits = await gitlab.Commits.all(parseInt(i.repo.externalId), {
+          refName: i.repo.defaultBranch,
+          perPage: 1
+        });
+
+        if (!commits || commits.length === 0) {
+          return null;
+        }
+
+        let commit = commits[0]!;
+        let hostname = new URL(installation.backend.webUrl).hostname;
+
+        let push = await db.scmRepositoryPush.create({
+          data: {
+            ...getId('scmRepositoryPush'),
+            repoOid: i.repo.oid,
+            tenantOid: i.repo.tenantOid,
+
+            sha: commit.id,
+            branchName: i.repo.defaultBranch,
+
+            pusherEmail: commit.author_email || null,
+            pusherName: commit.author_name || null,
+
+            senderIdentifier: `${hostname}/${commit.author_name}`,
+            commitMessage: commit.message
+          }
+        });
+
+        await createHandleRepoPushQueue.add({ pushId: push.id });
+
+        return push;
+      } catch (e: any) {
+        if (e.message.includes('empty') || e.message.includes('404')) {
           return null;
         }
 

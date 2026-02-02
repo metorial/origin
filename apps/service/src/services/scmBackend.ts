@@ -36,6 +36,34 @@ class scmBackendServiceImpl {
         clientSecret: env.gh.SCM_GITHUB_APP_CLIENT_SECRET
       }
     });
+
+    // Ensure default GitLab.com backend exists (if credentials provided)
+    if (env.gl.SCM_GITLAB_CLIENT_ID && env.gl.SCM_GITLAB_CLIENT_SECRET) {
+      await db.scmBackend.upsert({
+        where: {
+          tenantOid_type_apiUrl: {
+            tenantOid: null as any, // Global backend
+            type: 'gitlab',
+            apiUrl: 'https://gitlab.com/api/v4'
+          }
+        },
+        create: {
+          ...getId('scmBackend'),
+          type: 'gitlab',
+          name: 'GitLab',
+          description: 'GitLab.com',
+          apiUrl: 'https://gitlab.com/api/v4',
+          webUrl: 'https://gitlab.com',
+          clientId: env.gl.SCM_GITLAB_CLIENT_ID,
+          clientSecret: env.gl.SCM_GITLAB_CLIENT_SECRET,
+          isDefault: true
+        },
+        update: {
+          clientId: env.gl.SCM_GITLAB_CLIENT_ID,
+          clientSecret: env.gl.SCM_GITLAB_CLIENT_SECRET
+        }
+      });
+    }
   }
 
   async getDefaultGithubBackend(): Promise<ScmBackend> {
@@ -82,13 +110,13 @@ class scmBackendServiceImpl {
 
   async createScmBackend(d: {
     tenant: Tenant;
-    type: 'github' | 'github_enterprise';
+    type: 'github_enterprise' | 'gitlab_selfhosted';
     name: string;
     description?: string;
     apiUrl: string;
     webUrl: string;
-    appId: string;
-    appPrivateKey: string;
+    appId?: string;
+    appPrivateKey?: string;
     clientId: string;
     clientSecret: string;
   }) {
