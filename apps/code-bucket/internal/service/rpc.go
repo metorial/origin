@@ -8,6 +8,7 @@ import (
 	"github.com/metorial/metorial/services/code-bucket/gen/rpc"
 	"github.com/metorial/metorial/services/code-bucket/pkg/fs"
 	"github.com/metorial/metorial/services/code-bucket/pkg/github"
+	"github.com/metorial/metorial/services/code-bucket/pkg/gitlab"
 	zipImporter "github.com/metorial/metorial/services/code-bucket/pkg/zip-importer"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -212,4 +213,44 @@ func (rs *RcpService) ExportBucketToGithub(ctx context.Context, req *rpc.ExportB
 	}
 
 	return &rpc.ExportBucketToGithubResponse{}, nil
+}
+
+func (rs *RcpService) CreateBucketFromGitlab(ctx context.Context, req *rpc.CreateBucketFromGitlabRequest) (*rpc.CreateBucketResponse, error) {
+	iter, err := gitlab.DownloadRepo(req.ProjectId, req.Path, req.Ref, req.Token, req.GitlabApiUrl)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to download GitLab repository: %v", err)
+	}
+	defer iter.Close()
+
+	if err := rs.fsm.ImportZip(ctx, req.NewBucketId, iter); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to import zip: %v", err)
+	}
+
+	return &rpc.CreateBucketResponse{}, nil
+}
+
+func (rs *RcpService) ExportBucketToGitlab(ctx context.Context, req *rpc.ExportBucketToGitlabRequest) (*rpc.ExportBucketToGitlabResponse, error) {
+	files, err := rs.fsm.GetBucketFiles(ctx, req.BucketId, "")
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get bucket files: %v", err)
+	}
+
+	filesToUpload := make([]gitlab.FileToUpload, 0, len(files))
+	for _, file := range files {
+		_, content, err := rs.fsm.GetBucketFile(ctx, req.BucketId, file.Path)
+		if err != nil {
+			continue
+		}
+
+		filesToUpload = append(filesToUpload, gitlab.FileToUpload{
+			Path:    file.Path,
+			Content: content.Content,
+		})
+	}
+
+	if err := gitlab.UploadToRepo(req.ProjectId, req.Path, req.Token, req.GitlabApiUrl, filesToUpload); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to upload to GitLab: %v", err)
+	}
+
+	return &rpc.ExportBucketToGitlabResponse{}, nil
 }
