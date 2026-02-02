@@ -16,7 +16,7 @@ import { importTemplateQueue } from '../queues/codeBucket/importTemplate';
 import { codeBucketPurposeService } from './codeBucketPurpose';
 
 let include = {
-  repository: true
+  repository: { include: { account: true } }
 };
 
 class codeBucketServiceImpl {

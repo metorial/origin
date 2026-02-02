@@ -9,6 +9,8 @@ export let ID = createIdGenerator({
   codeBucketPurpose: idType.sorted('ocp_'),
   codeBucketTemplate: idType.sorted('oct_'),
 
+  changeNotification: idType.sorted('ocn_'),
+
   scmAccount: idType.sorted('osa_'),
   scmRepository: idType.sorted('osr_'),
   scmInstallation: idType.sorted('osi_'),

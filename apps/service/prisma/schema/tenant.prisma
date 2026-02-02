@@ -13,6 +13,7 @@ model Tenant {
   codeBuckets             CodeBucket[]
   scmRepositories         ScmRepository[]
   scmRepositoryPushes     ScmRepositoryPush[]
+  changeNotifications     ChangeNotification[]
 }
 
 model Actor {

@@ -59,9 +59,10 @@ model ScmRepository {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  codeBuckets     CodeBucket[]
-  scmRepoWebhooks ScmRepositoryWebhook[]
-  scmRepoPushes   ScmRepositoryPush[]
+  codeBuckets         CodeBucket[]
+  scmRepoWebhooks     ScmRepositoryWebhook[]
+  scmRepoPushes       ScmRepositoryPush[]
+  changeNotifications ChangeNotification[]
 
   @@unique([tenantOid, provider, externalId])
 }
@@ -162,5 +163,6 @@ model ScmRepositoryPush {
   branchName String
   sha        String
 
-  createdAt DateTime @default(now())
+  createdAt           DateTime             @default(now())
+  changeNotifications ChangeNotification[]
 }

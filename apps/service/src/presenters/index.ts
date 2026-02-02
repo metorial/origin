@@ -1,4 +1,5 @@
 export * from './actor';
+export * from './changeNotification';
 export * from './codeBucket';
 export * from './codeBucketFile';
 export * from './event';
@@ -9,5 +10,6 @@ export * from './repository';
 export * from './scmAccount';
 export * from './scmInstallation';
 export * from './scmRepoPreview';
+export * from './scmRepositoryPush';
 export * from './sender';
 export * from './tenant';

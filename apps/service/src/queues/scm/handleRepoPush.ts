@@ -1,6 +1,7 @@
 import { createQueue, QueueRetryError } from '@lowerdeck/queue';
 import { db } from '../../db';
 import { env } from '../../env';
+import { changeNotificationService } from '../../services';
 
 export let createHandleRepoPushQueue = createQueue<{ pushId: string }>({
   name: 'ori/rep/hndl-push',
@@ -15,6 +16,15 @@ export let createHandleRepoPushQueueProcessor = createHandleRepoPushQueue.proces
     });
     if (!push) throw new QueueRetryError();
 
-    // TODO: add change notifications
+    // Create change notification
+    let tenant = await db.tenant.findUniqueOrThrow({
+      where: { oid: push.tenantOid }
+    });
+
+    await changeNotificationService.createForRepoPush({
+      tenant,
+      repo: push.repo,
+      repoPush: push
+    });
   }
 );

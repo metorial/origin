@@ -340,7 +340,7 @@ class scmRepoServiceImpl {
           }
         });
 
-        // await createHandleRepoPushQueue.add({ pushId: push.id });
+        await createHandleRepoPushQueue.add({ pushId: push.id });
 
         return push;
       } catch (e: any) {
