@@ -3,6 +3,7 @@ import { db } from '../../db';
 import { env } from '../../env';
 import { codeBucketClient } from '../../lib/codeWorkspace';
 import { codeBucketService } from '../../services/codeBucket';
+import { getInstallationAccessToken } from '../../lib/githubApp';
 
 export let exportGithubQueue = createQueue<{
   bucketId: string;
@@ -19,13 +20,20 @@ export let exportGithubQueueProcessor = exportGithubQueue.process(async data => 
     include: { installation: true }
   });
 
+  if (!repo.installation.externalInstallationId) {
+    throw new Error('Installation ID not found');
+  }
+
   await codeBucketService.waitForCodeBucketReady({ codeBucketId: data.bucketId });
+
+  // Get a fresh installation access token
+  let token = await getInstallationAccessToken(repo.installation.externalInstallationId);
 
   await codeBucketClient.exportBucketToGithub({
     bucketId: data.bucketId,
     owner: repo.externalOwner,
     repo: repo.externalName,
     path: data.path,
-    token: repo.installation.accessToken
+    token
   });
 });

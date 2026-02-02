@@ -41,6 +41,7 @@
     "@lowerdeck/slugify": "^1.0.4",
     "@lowerdeck/validation": "^1.0.4",
     "@metorial-services/forge-client": "^1.0.3",
+    "@octokit/auth-app": "^8.1.2",
     "@octokit/core": "^7.0.6",
     "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",

@@ -6,10 +6,14 @@ export let scmInstallationPresenter = (installation: ScmInstallation) => ({
   id: installation.id,
   provider: installation.provider,
 
-  externalUserId: installation.externalUserId,
-  externalUserName: installation.externalUserName,
-  externalUserEmail: installation.externalUserEmail,
-  externalUserImageUrl: installation.externalUserImageUrl,
+  externalInstallationId: installation.externalInstallationId,
+  accountType: installation.accountType,
+
+  externalAccountId: installation.externalAccountId,
+  externalAccountLogin: installation.externalAccountLogin,
+  externalAccountName: installation.externalAccountName,
+  externalAccountEmail: installation.externalAccountEmail,
+  externalAccountImageUrl: installation.externalAccountImageUrl,
 
   createdAt: installation.createdAt,
   updatedAt: installation.updatedAt

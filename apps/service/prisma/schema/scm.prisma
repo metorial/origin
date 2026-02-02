@@ -79,19 +79,23 @@ model ScmInstallation {
   tenantOid BigInt
   tenant    Tenant @relation(fields: [tenantOid], references: [oid], onDelete: Cascade)
 
-  accessToken String
+  // GitHub App Installation
+  externalInstallationId String? // GitHub App installation ID
+  accountType            ScmAccountType? // user or organization
 
-  externalUserId       String
-  externalUserName     String
-  externalUserEmail    String?
-  externalUserImageUrl String?
+  // Account info (for both OAuth and App)
+  externalAccountId    String // Account ID (user or org)
+  externalAccountLogin String // Account login (username or org name)
+  externalAccountName  String? // Display name
+  externalAccountEmail String?
+  externalAccountImageUrl String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
   repos ScmRepository[]
 
-  @@unique([tenantOid, provider, externalUserId])
+  @@unique([tenantOid, provider, externalAccountId])
 }
 
 model ScmInstallationAttempt {

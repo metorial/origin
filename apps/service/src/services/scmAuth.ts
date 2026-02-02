@@ -5,6 +5,7 @@ import type { Actor, ScmProvider, Tenant } from '../../prisma/generated/client';
 import { db } from '../db';
 import { env } from '../env';
 import { getId } from '../id';
+import { createGitHubAppClient } from '../lib/githubApp';
 
 class scmAuthServiceImpl {
   async getAuthorizationUrl(i: {
@@ -23,14 +24,11 @@ class scmAuthServiceImpl {
     });
 
     if (i.provider === 'github') {
-      let url = new URL('https://github.com/login/oauth/authorize');
-      url.searchParams.set('client_id', env.gh.SCM_GITHUB_CLIENT_ID!);
-      url.searchParams.set('scope', 'user:email read:org repo');
-      url.searchParams.set('state', attempt.state);
-      url.searchParams.set(
-        'redirect_uri',
-        `${env.service.ORIGIN_SERVICE_URL}/origin/scm/oauth/github/callback`
+      // GitHub Apps use installation authorization flow
+      let url = new URL(
+        `https://github.com/apps/${env.gh.SCM_GITHUB_APP_ID}/installations/select_target`
       );
+      url.searchParams.set('state', attempt.state);
       return url.toString();
     }
 
@@ -41,7 +39,12 @@ class scmAuthServiceImpl {
     );
   }
 
-  async exchangeCodeForToken(i: { provider: 'github'; code: string; state: string }) {
+  async handleInstallation(i: {
+    provider: 'github';
+    installationId: string;
+    setupAction: string;
+    state: string;
+  }) {
     let attempt = await db.scmInstallationAttempt.findUnique({
       where: {
         state: i.state
@@ -56,92 +59,49 @@ class scmAuthServiceImpl {
     }
 
     if (i.provider === 'github') {
-      let tokenRes = await fetch('https://github.com/login/oauth/access_token', {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          client_id: env.gh.SCM_GITHUB_CLIENT_ID,
-          client_secret: env.gh.SCM_GITHUB_CLIENT_SECRET,
-          code: i.code,
-          redirect_uri: `${env.service.ORIGIN_SERVICE_URL}/origin/scm/oauth/github/callback`,
-          state: i.state
-        })
+      // Get installation details using GitHub App authentication
+      let octokit = createGitHubAppClient();
+
+      let installationRes = await octokit.request('GET /app/installations/{installation_id}', {
+        installation_id: parseInt(i.installationId)
       });
 
-      if (!tokenRes.ok) {
-        throw new ServiceError(
-          badRequestError({
-            message: 'Failed to exchange code for token'
-          })
-        );
+      let installation = installationRes.data;
+      let account = installation.account;
+
+      if (!account) {
+        throw new ServiceError(badRequestError({ message: 'Installation account not found' }));
       }
 
-      let tokenData: { access_token?: string; error?: string; error_description?: string } =
-        (await tokenRes.json()) as any;
-
-      if (tokenData.error || !tokenData.access_token) {
-        throw new ServiceError(
-          badRequestError({
-            message: 'Failed to exchange code for token',
-            hint: tokenData.error_description || tokenData.error
-          })
-        );
-      }
-
-      let profileRes = await fetch('https://api.github.com/user', {
-        headers: {
-          Accept: 'application/vnd.github.v3+json',
-          Authorization: `Bearer ${tokenData.access_token}`
-        }
-      });
-
-      if (!profileRes.ok) {
-        throw new ServiceError(
-          badRequestError({
-            message: 'Failed to fetch user profile from GitHub'
-          })
-        );
-      }
-
-      let profileData: {
-        id: number;
-        login: string;
-        name: string;
-        email?: string;
-
-        avatar_url?: string;
-      } = (await profileRes.json()) as any;
-
-      if (!profileData.id || !profileData.login) {
-        throw new ServiceError(
-          badRequestError({
-            message: 'Failed to fetch user profile from GitHub'
-          })
-        );
-      }
+      // Handle both User and Organization types
+      let accountType: 'user' | 'organization' =
+        'type' in account && account.type === 'User' ? 'user' : 'organization';
+      let accountLogin =
+        'login' in account ? account.login : 'slug' in account ? account.slug : '';
+      let accountName = account.name || accountLogin;
+      let accountEmail = 'email' in account ? account.email : null;
 
       let data = {
         provider: i.provider,
         tenantOid: attempt.tenantOid,
         ownerActorOid: attempt.ownerActorOid,
 
-        externalUserEmail: profileData.email,
-        externalUserId: profileData.id.toString(),
-        externalUserName: profileData.name ?? profileData.login,
-        externalUserImageUrl: profileData.avatar_url,
+        externalInstallationId: i.installationId,
+        accountType: accountType as 'user' | 'organization',
 
-        accessToken: tokenData.access_token
+        externalAccountId: account.id.toString(),
+        externalAccountLogin: accountLogin,
+        externalAccountName: accountName || null,
+        externalAccountEmail: accountEmail || null,
+        externalAccountImageUrl: account.avatar_url || null
       };
 
       return db.scmInstallation.upsert({
         where: {
-          tenantOid_provider_externalUserId: {
+          tenantOid_provider_externalAccountId: {
             tenantOid: attempt.tenantOid,
             provider: i.provider,
-            externalUserId: profileData.id.toString()
+            externalAccountId: account.id.toString()
           }
         },
         update: data,
