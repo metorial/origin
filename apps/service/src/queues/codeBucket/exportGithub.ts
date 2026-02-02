@@ -2,8 +2,8 @@ import { createQueue } from '@lowerdeck/queue';
 import { db } from '../../db';
 import { env } from '../../env';
 import { codeBucketClient } from '../../lib/codeWorkspace';
-import { codeBucketService } from '../../services/codeBucket';
 import { getInstallationAccessToken } from '../../lib/githubApp';
+import { codeBucketService } from '../../services/codeBucket';
 
 export let exportGithubQueue = createQueue<{
   bucketId: string;
@@ -19,7 +19,6 @@ export let exportGithubQueueProcessor = exportGithubQueue.process(async data => 
     where: { id: data.repoId },
     include: { installation: true }
   });
-
   if (!repo.installation.externalInstallationId) {
     throw new Error('Installation ID not found');
   }

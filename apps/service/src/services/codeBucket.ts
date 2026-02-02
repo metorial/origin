@@ -72,6 +72,7 @@ class codeBucketServiceImpl {
     path?: string;
     ref?: string;
     isReadOnly?: boolean;
+    isSynced?: boolean;
   }) {
     if (d.repo.provider != 'github') {
       throw new ServiceError(
@@ -81,6 +82,8 @@ class codeBucketServiceImpl {
       );
     }
 
+    let ref = d.ref ?? d.repo.defaultBranch ?? 'main';
+
     let codeBucket = await db.codeBucket.create({
       data: {
         ...getId('codeBucket'),
@@ -89,7 +92,9 @@ class codeBucketServiceImpl {
         repositoryOid: d.repo.oid,
         path: normalizePath(d.path ?? '/'),
         status: 'importing',
-        isReadOnly: d.isReadOnly
+        isReadOnly: d.isReadOnly,
+        isSynced: d.isSynced ?? false,
+        syncRef: d.isSynced ? ref : null
       },
       include
     });
@@ -99,11 +104,44 @@ class codeBucketServiceImpl {
       owner: d.repo.externalOwner,
       path: d.path ?? '/',
       repo: d.repo.externalName,
-      ref: d.ref ?? d.repo.defaultBranch ?? 'main',
+      ref,
       repoId: d.repo.id
     });
 
     return codeBucket;
+  }
+
+  async syncCodeBucketFromRepo(d: { codeBucket: CodeBucket; repo: ScmRepository }) {
+    if (!d.codeBucket.isSynced) {
+      throw new ServiceError(
+        badRequestError({
+          message: 'Bucket is not configured for syncing'
+        })
+      );
+    }
+
+    if (d.repo.provider != 'github') {
+      throw new ServiceError(
+        badRequestError({
+          message: 'Only GitHub repositories are supported'
+        })
+      );
+    }
+
+    // Set status to importing to prevent clone conflicts
+    await db.codeBucket.update({
+      where: { oid: d.codeBucket.oid },
+      data: { status: 'importing' }
+    });
+
+    await importGithubQueue.add({
+      newBucketId: d.codeBucket.id,
+      owner: d.repo.externalOwner,
+      path: d.codeBucket.path ?? '/',
+      repo: d.repo.externalName,
+      ref: d.codeBucket.syncRef ?? d.repo.defaultBranch ?? 'main',
+      repoId: d.repo.id
+    });
   }
 
   async cloneCodeBucketTemplate(d: {

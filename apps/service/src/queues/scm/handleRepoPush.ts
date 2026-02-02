@@ -1,7 +1,7 @@
 import { createQueue, QueueRetryError } from '@lowerdeck/queue';
 import { db } from '../../db';
 import { env } from '../../env';
-import { changeNotificationService } from '../../services';
+import { changeNotificationService, codeBucketService } from '../../services';
 
 export let createHandleRepoPushQueue = createQueue<{ pushId: string }>({
   name: 'ori/rep/hndl-push',
@@ -26,5 +26,21 @@ export let createHandleRepoPushQueueProcessor = createHandleRepoPushQueue.proces
       repo: push.repo,
       repoPush: push
     });
+
+    // Sync all synced buckets for this repo and branch
+    let syncedBuckets = await db.codeBucket.findMany({
+      where: {
+        repositoryOid: push.repo.oid,
+        isSynced: true,
+        syncRef: push.branchName
+      }
+    });
+
+    for (let bucket of syncedBuckets) {
+      await codeBucketService.syncCodeBucketFromRepo({
+        codeBucket: bucket,
+        repo: push.repo
+      });
+    }
   }
 );

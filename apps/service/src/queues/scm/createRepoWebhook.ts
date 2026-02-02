@@ -1,9 +1,9 @@
 import { generatePlainId } from '@lowerdeck/id';
 import { createQueue, QueueRetryError } from '@lowerdeck/queue';
-import { Octokit } from '@octokit/core';
 import { db } from '../../db';
 import { env } from '../../env';
 import { ID } from '../../id';
+import { createGitHubInstallationClient } from '../../lib/githubApp';
 
 export let createRepoWebhookQueue = createQueue<{ repoId: string }>({
   name: 'ori/rep/wh-cr',
@@ -16,8 +16,11 @@ export let createRepoWebhookQueueProcessor = createRepoWebhookQueue.process(asyn
     include: { installation: true }
   });
   if (!repo) throw new QueueRetryError();
+  if (!repo.installation.externalInstallationId) {
+    throw new Error('Installation ID not found');
+  }
 
-  let octokit = new Octokit({ auth: repo.installation.accessToken });
+  let octokit = await createGitHubInstallationClient(repo.installation.externalInstallationId);
 
   let secret = generatePlainId(32);
   let webhookId = await ID.generateId('scmRepositoryWebhook');
