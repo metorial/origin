@@ -2,7 +2,7 @@
   "name": "@metorial/origin-root",
   "private": true,
   "scripts": {
-    "dev": "docker compose -p origin -f ./docker-compose.dev.yml up --pull always --build code-bucket"
+    "dev": "docker compose -p origin -f ./docker-compose.dev.yml up --pull always --build code-bucket service"
   },
   "devDependencies": {
     "prettier": "^3.5.3",

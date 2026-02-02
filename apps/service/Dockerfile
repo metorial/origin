@@ -12,30 +12,42 @@ WORKDIR /app
 FROM base AS deps
 
 # Copy package files
-COPY package.json bun.lock* ./
+COPY service/package.json service/bun.lock* ./
 
 # Install dependencies (production only)
 RUN bun install --frozen-lockfile --production
+
+# Copy code-bucket workspace files after install
+RUN mkdir -p ./node_modules/@metorial/code-bucket-service-generated
+COPY code-bucket/package.json ./node_modules/@metorial/code-bucket-service-generated/
+COPY code-bucket/index.ts ./node_modules/@metorial/code-bucket-service-generated/
+COPY code-bucket/ts-proto-gen ./node_modules/@metorial/code-bucket-service-generated/ts-proto-gen
 
 # Build stage
 FROM base AS builder
 
 # Copy package files
-COPY package.json bun.lock* ./
+COPY service/package.json service/bun.lock* ./
 
 # Install all dependencies (including devDependencies for Prisma generation)
 RUN bun install --frozen-lockfile
 
+# Copy code-bucket workspace files after install
+RUN mkdir -p ./node_modules/@metorial/code-bucket-service-generated
+COPY code-bucket/package.json ./node_modules/@metorial/code-bucket-service-generated/
+COPY code-bucket/index.ts ./node_modules/@metorial/code-bucket-service-generated/
+COPY code-bucket/ts-proto-gen ./node_modules/@metorial/code-bucket-service-generated/ts-proto-gen
+
 # Copy Prisma schema
-COPY prisma ./prisma
-COPY prisma.config.ts ./prisma.config.ts
+COPY service/prisma ./prisma
+COPY service/prisma.config.ts ./prisma.config.ts
 
 # Generate Prisma client
 RUN bun prisma generate
 
 # Copy source code
-COPY src ./src
-COPY tsconfig.json ./tsconfig.json
+COPY service/src ./src
+COPY service/tsconfig.json ./tsconfig.json
 
 # Production stage
 FROM base AS runner
