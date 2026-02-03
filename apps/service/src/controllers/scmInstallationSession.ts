@@ -1,5 +1,4 @@
 import { v } from '@lowerdeck/validation';
-import { db } from '../db';
 import { presentScmInstallationSession } from '../presenters/scmInstallationSession';
 import { actorService, scmInstallationSessionService } from '../services';
 import { app } from './_app';
@@ -49,33 +48,5 @@ export let scmInstallationSessionController = app.controller({
     )
     .do(async ctx => {
       return presentScmInstallationSession(ctx.session);
-    }),
-
-  getStatus: scmInstallationSessionApp
-    .handler()
-    .input(
-      v.object({
-        tenantId: v.string(),
-        sessionId: v.string()
-      })
-    )
-    .do(async ctx => {
-      let installation = ctx.session.installationOid
-        ? await db.scmInstallation.findUnique({
-            where: { oid: ctx.session.installationOid }
-          })
-        : null;
-
-      return {
-        ...presentScmInstallationSession(ctx.session),
-        completed: !!ctx.session.installationOid,
-        installation: installation
-          ? {
-              id: installation.id,
-              provider: installation.provider,
-              externalAccountLogin: installation.externalAccountLogin
-            }
-          : null
-      };
     })
 });

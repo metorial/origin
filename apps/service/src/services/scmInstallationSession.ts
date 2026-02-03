@@ -24,17 +24,19 @@ class ScmInstallationSessionServiceImpl {
         redirectUrl: d.redirectUrl,
         state,
         expiresAt
-      }
+      },
+      include: { installation: true }
     });
   }
 
   async getInstallationSession(d: { sessionId: string; tenant: Tenant }) {
     let session = await db.scmInstallationSession.findUnique({
-      where: { id: d.sessionId, tenantOid: d.tenant.oid }
+      where: { id: d.sessionId, tenantOid: d.tenant.oid },
+      include: { installation: true }
     });
 
     if (!session) {
-      throw new ServiceError(notFoundError('installation session'));
+      throw new ServiceError(notFoundError('scm_installation_session'));
     }
 
     if (session.expiresAt < new Date()) {
@@ -47,11 +49,11 @@ class ScmInstallationSessionServiceImpl {
   async getInstallationSessionPublic(d: { sessionId: string }) {
     let session = await db.scmInstallationSession.findUnique({
       where: { id: d.sessionId },
-      include: { tenant: true }
+      include: { tenant: true, installation: true }
     });
 
     if (!session) {
-      throw new ServiceError(notFoundError('installation session'));
+      throw new ServiceError(notFoundError('scm_installation_session'));
     }
 
     if (session.expiresAt < new Date()) {
@@ -64,11 +66,11 @@ class ScmInstallationSessionServiceImpl {
   async getInstallationSessionByState(d: { state: string }) {
     let session = await db.scmInstallationSession.findUnique({
       where: { state: d.state },
-      include: { tenant: true, ownerActor: true }
+      include: { tenant: true, ownerActor: true, installation: true }
     });
 
     if (!session) {
-      throw new ServiceError(notFoundError('installation session'));
+      throw new ServiceError(notFoundError('scm_installation_session'));
     }
 
     if (session.expiresAt < new Date()) {
@@ -81,7 +83,8 @@ class ScmInstallationSessionServiceImpl {
   async completeInstallationSession(d: { sessionId: string; installationOid: bigint }) {
     await db.scmInstallationSession.update({
       where: { id: d.sessionId },
-      data: { installationOid: d.installationOid }
+      data: { installationOid: d.installationOid },
+      include: { installation: true }
     });
   }
 
@@ -103,18 +106,19 @@ class ScmInstallationSessionServiceImpl {
         parentInstallationSessionOid: d.parentInstallationSession?.oid,
         state,
         expiresAt
-      }
+      },
+      include: { parentInstallationSession: true, backend: true }
     });
   }
 
   async getBackendSetupSession(d: { sessionId: string; tenant: Tenant }) {
     let session = await db.scmBackendSetupSession.findUnique({
       where: { id: d.sessionId, tenantOid: d.tenant.oid },
-      include: { parentInstallationSession: true }
+      include: { parentInstallationSession: true, backend: true }
     });
 
     if (!session) {
-      throw new ServiceError(notFoundError('backend setup session'));
+      throw new ServiceError(notFoundError('scm_backend_setup_session'));
     }
 
     if (session.expiresAt < new Date()) {
@@ -127,11 +131,11 @@ class ScmInstallationSessionServiceImpl {
   async getBackendSetupSessionPublic(d: { sessionId: string }) {
     let session = await db.scmBackendSetupSession.findUnique({
       where: { id: d.sessionId },
-      include: { parentInstallationSession: true }
+      include: { parentInstallationSession: true, backend: true }
     });
 
     if (!session) {
-      throw new ServiceError(notFoundError('backend setup session'));
+      throw new ServiceError(notFoundError('scm_backend_setup_session'));
     }
 
     if (session.expiresAt < new Date()) {
@@ -144,7 +148,8 @@ class ScmInstallationSessionServiceImpl {
   async completeBackendSetupSession(d: { sessionId: string; backend: ScmBackend }) {
     await db.scmBackendSetupSession.update({
       where: { id: d.sessionId },
-      data: { backendOid: d.backend.oid }
+      data: { backendOid: d.backend.oid },
+      include: { backend: true }
     });
   }
 

@@ -1,6 +1,4 @@
 import { v } from '@lowerdeck/validation';
-import { db } from '../db';
-import { scmBackendPresenter } from '../presenters/scmBackend';
 import { presentScmBackendSetupSession } from '../presenters/scmBackendSetupSession';
 import { actorService, scmInstallationSessionService } from '../services';
 import { app } from './_app';
@@ -59,27 +57,5 @@ export let scmBackendSetupSessionController = app.controller({
     )
     .do(async ctx => {
       return presentScmBackendSetupSession(ctx.session);
-    }),
-
-  getStatus: scmBackendSetupSessionApp
-    .handler()
-    .input(
-      v.object({
-        tenantId: v.string(),
-        sessionId: v.string()
-      })
-    )
-    .do(async ctx => {
-      let backend = ctx.session.backendOid
-        ? await db.scmBackend.findUnique({
-            where: { oid: ctx.session.backendOid }
-          })
-        : null;
-
-      return {
-        ...presentScmBackendSetupSession(ctx.session),
-        completed: !!ctx.session.backendOid,
-        backend: backend ? scmBackendPresenter(backend) : null
-      };
     })
 });

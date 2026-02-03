@@ -28,7 +28,7 @@ class scmAuthServiceImpl {
     });
 
     if (!backend) {
-      throw new ServiceError(notFoundError('scmBackend'));
+      throw new ServiceError(notFoundError('scm_backend'));
     }
 
     if (
@@ -37,8 +37,17 @@ class scmAuthServiceImpl {
     ) {
       // GitHub Apps use installation authorization flow
       let webUrl = backend.webUrl;
-      let appId = backend.appId;
-      let url = new URL(`${webUrl}/apps/${appId}/installations/select_target`);
+      let appSlug = backend.appSlug;
+
+      if (!appSlug) {
+        throw new ServiceError(
+          badRequestError({
+            message: 'GitHub backend missing appSlug'
+          })
+        );
+      }
+
+      let url = new URL(`${webUrl}/apps/${appSlug}/installations/new`);
       url.searchParams.set('state', i.state);
       return url.toString();
     }
@@ -98,7 +107,7 @@ class scmAuthServiceImpl {
     });
 
     if (!backend) {
-      throw new ServiceError(notFoundError('GitHub backend'));
+      throw new ServiceError(notFoundError('scm_backend.github'));
     }
 
     if (i.provider === 'github') {
@@ -202,7 +211,7 @@ class scmAuthServiceImpl {
     });
 
     if (!backend) {
-      throw new ServiceError(notFoundError('GitLab backend'));
+      throw new ServiceError(notFoundError('scm_backend.gitlab'));
     }
 
     if (i.provider === 'gitlab') {

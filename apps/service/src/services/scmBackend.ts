@@ -24,6 +24,7 @@ class scmBackendServiceImpl {
         apiUrl: 'https://api.github.com',
         webUrl: 'https://github.com',
         appId: env.gh.SCM_GITHUB_APP_ID,
+        appSlug: env.gh.SCM_GITHUB_APP_SLUG,
         appPrivateKey: SCM_GITHUB_APP_PRIVATE_KEY,
         clientId: env.gh.SCM_GITHUB_APP_CLIENT_ID,
         clientSecret: env.gh.SCM_GITHUB_APP_CLIENT_SECRET,
@@ -31,6 +32,7 @@ class scmBackendServiceImpl {
       },
       update: {
         appId: env.gh.SCM_GITHUB_APP_ID,
+        appSlug: env.gh.SCM_GITHUB_APP_SLUG,
         appPrivateKey: SCM_GITHUB_APP_PRIVATE_KEY,
         clientId: env.gh.SCM_GITHUB_APP_CLIENT_ID,
         clientSecret: env.gh.SCM_GITHUB_APP_CLIENT_SECRET
@@ -78,7 +80,7 @@ class scmBackendServiceImpl {
     });
 
     if (!backend) {
-      throw new ServiceError(notFoundError('scmBackend'));
+      throw new ServiceError(notFoundError('scm_backend'));
     }
 
     return backend;
@@ -93,7 +95,7 @@ class scmBackendServiceImpl {
     });
 
     if (!backend) {
-      throw new ServiceError(notFoundError('scmBackend'));
+      throw new ServiceError(notFoundError('scm_backend'));
     }
 
     return backend;
@@ -116,6 +118,7 @@ class scmBackendServiceImpl {
     apiUrl: string;
     webUrl: string;
     appId?: string;
+    appSlug?: string;
     appPrivateKey?: string;
     clientId: string;
     clientSecret: string;
@@ -131,10 +134,10 @@ class scmBackendServiceImpl {
       );
     }
 
-    if (d.type === 'github_enterprise' && (!d.appId || !d.appPrivateKey)) {
+    if (d.type === 'github_enterprise' && (!d.appId || !d.appSlug || !d.appPrivateKey)) {
       throw new ServiceError(
         badRequestError({
-          message: 'GitHub Enterprise backends require appId and appPrivateKey'
+          message: 'GitHub Enterprise backends require appId, appSlug, and appPrivateKey'
         })
       );
     }
@@ -149,6 +152,7 @@ class scmBackendServiceImpl {
         apiUrl: d.apiUrl,
         webUrl: d.webUrl,
         appId: d.appId,
+        appSlug: d.appSlug,
         appPrivateKey: d.appPrivateKey,
         clientId: d.clientId,
         clientSecret: d.clientSecret,
@@ -162,6 +166,7 @@ class scmBackendServiceImpl {
     name?: string;
     description?: string;
     appId?: string;
+    appSlug?: string;
     appPrivateKey?: string;
     clientId?: string;
     clientSecret?: string;
@@ -180,6 +185,7 @@ class scmBackendServiceImpl {
         name: d.name,
         description: d.description,
         appId: d.appId,
+        appSlug: d.appSlug,
         appPrivateKey: d.appPrivateKey,
         clientId: d.clientId,
         clientSecret: d.clientSecret

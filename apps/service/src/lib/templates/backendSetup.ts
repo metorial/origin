@@ -187,6 +187,11 @@ export let backendSetupHtml = (d: { sessionId: string; installationSessionId?: s
       <div class="form-group" id="githubFields" style="display: none;">
         <label for="appId">GitHub App ID</label>
         <input type="text" id="appId" name="appId" placeholder="123456" />
+        <div class="help-text">The numeric ID of your GitHub App</div>
+
+        <label for="appSlug" style="margin-top: 12px;">GitHub App Slug</label>
+        <input type="text" id="appSlug" name="appSlug" placeholder="my-app-name" />
+        <div class="help-text">The URL-friendly name of your GitHub App</div>
 
         <label for="appPrivateKey" style="margin-top: 12px;">GitHub App Private Key</label>
         <textarea id="appPrivateKey" name="appPrivateKey" placeholder="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"></textarea>
@@ -224,11 +229,13 @@ export let backendSetupHtml = (d: { sessionId: string; installationSessionId?: s
       if (type === 'github_enterprise') {
         githubFields.style.display = 'block';
         document.getElementById('appId').required = true;
+        document.getElementById('appSlug').required = true;
         document.getElementById('appPrivateKey').required = true;
         apiUrlInput.placeholder = 'https://github.company.com/api/v3';
       } else if (type === 'gitlab_selfhosted') {
         githubFields.style.display = 'none';
         document.getElementById('appId').required = false;
+        document.getElementById('appSlug').required = false;
         document.getElementById('appPrivateKey').required = false;
         apiUrlInput.placeholder = 'https://gitlab.company.com/api/v4';
       }

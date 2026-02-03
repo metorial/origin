@@ -43,6 +43,7 @@ export let scmBackendSetupPublicController = createHono()
         clientId: v.string(),
         clientSecret: v.string(),
         appId: v.optional(v.string()),
+        appSlug: v.optional(v.string()),
         appPrivateKey: v.optional(v.string())
       })
     );
@@ -63,6 +64,7 @@ export let scmBackendSetupPublicController = createHono()
       clientId: body.clientId,
       clientSecret: body.clientSecret,
       appId: body.appId,
+      appSlug: body.appSlug,
       appPrivateKey: body.appPrivateKey
     });
 

@@ -17,6 +17,7 @@ export let env = createValidatedEnv({
 
   gh: {
     SCM_GITHUB_APP_ID: v.string(),
+    SCM_GITHUB_APP_SLUG: v.string(),
     SCM_GITHUB_APP_PRIVATE_KEY_BASE_64: v.string(),
     SCM_GITHUB_APP_CLIENT_ID: v.string(),
     SCM_GITHUB_APP_CLIENT_SECRET: v.string()
