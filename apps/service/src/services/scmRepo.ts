@@ -393,19 +393,13 @@ class scmRepoServiceImpl {
         i.installation.backend
       );
 
-      let projectRes =
-        i.externalAccountId == i.installation.externalAccountId
-          ? await gitlab.Projects.create({
-              name: i.name,
-              description: i.description,
-              visibility: i.isPrivate ? 'private' : 'public'
-            })
-          : await gitlab.Projects.create({
-              name: i.name,
-              description: i.description,
-              visibility: i.isPrivate ? 'private' : 'public',
-              namespaceId: parseInt(i.externalAccountId)
-            });
+      // Always pass namespaceId to create in the correct namespace (user or group)
+      let projectRes = await gitlab.Projects.create({
+        name: i.name,
+        description: i.description,
+        visibility: i.isPrivate ? 'private' : 'public',
+        namespaceId: parseInt(i.externalAccountId)
+      });
 
       return await this.linkRepository({
         installation: i.installation,
