@@ -145,6 +145,31 @@ export let backendSetupHtml = (d: { sessionId: string; installationSessionId?: s
     .back-link:hover {
       text-decoration: underline;
     }
+
+    .info-box {
+      background: #f5f9ff;
+      border: 1px solid #d6e4ff;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+    }
+
+    .info-box-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #1d1d1f;
+      margin-bottom: 8px;
+    }
+
+    .info-box-content {
+      font-size: 13px;
+      color: #595959;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+      background: white;
+      padding: 8px;
+      border-radius: 4px;
+      word-break: break-all;
+    }
   </style>
 </head>
 <body>
@@ -153,6 +178,11 @@ export let backendSetupHtml = (d: { sessionId: string; installationSessionId?: s
 
     <h1>Setup Custom Provider</h1>
     <p class="subtitle">Configure your GitHub Enterprise or GitLab instance</p>
+
+    <div class="info-box">
+      <div class="info-box-title">OAuth Callback URL</div>
+      <div class="info-box-content" id="callbackUrl">Select a provider type to see the callback URL</div>
+    </div>
 
     <div id="error" class="error" style="display: none;"></div>
 
@@ -173,15 +203,9 @@ export let backendSetupHtml = (d: { sessionId: string; installationSessionId?: s
       </div>
 
       <div class="form-group">
-        <label for="webUrl">Web URL</label>
-        <input type="url" id="webUrl" name="webUrl" placeholder="https://github.company.com" required />
-        <div class="help-text">The base URL for the web interface</div>
-      </div>
-
-      <div class="form-group">
-        <label for="apiUrl">API URL</label>
-        <input type="url" id="apiUrl" name="apiUrl" placeholder="https://api.github.company.com" required />
-        <div class="help-text">The API endpoint URL</div>
+        <label for="apiUrl">Base URL</label>
+        <input type="url" id="apiUrl" name="apiUrl" placeholder="https://github.company.com" required />
+        <div class="help-text">The base URL of your instance (e.g., https://github.company.com or https://gitlab.company.com)</div>
       </div>
 
       <div class="form-group" id="githubFields" style="display: none;">
@@ -222,7 +246,7 @@ export let backendSetupHtml = (d: { sessionId: string; installationSessionId?: s
     const typeSelect = document.getElementById('type');
     const githubFields = document.getElementById('githubFields');
     const errorDiv = document.getElementById('error');
-    const apiUrlInput = document.getElementById('apiUrl');
+    const callbackUrlDiv = document.getElementById('callbackUrl');
 
     typeSelect.addEventListener('change', (e) => {
       const type = e.target.value;
@@ -231,13 +255,13 @@ export let backendSetupHtml = (d: { sessionId: string; installationSessionId?: s
         document.getElementById('appId').required = true;
         document.getElementById('appSlug').required = true;
         document.getElementById('appPrivateKey').required = true;
-        apiUrlInput.placeholder = 'https://github.company.com/api/v3';
+        callbackUrlDiv.textContent = window.location.origin + '/origin/oauth/github/callback';
       } else if (type === 'gitlab_selfhosted') {
         githubFields.style.display = 'none';
         document.getElementById('appId').required = false;
         document.getElementById('appSlug').required = false;
         document.getElementById('appPrivateKey').required = false;
-        apiUrlInput.placeholder = 'https://gitlab.company.com/api/v4';
+        callbackUrlDiv.textContent = window.location.origin + '/origin/oauth/gitlab/callback';
       }
     });
 

@@ -1,5 +1,3 @@
-import type { ScmBackend } from '../../../prisma/generated/client';
-
 export let installationSessionHtml = (d: {
   sessionId: string;
   backends: Array<{
@@ -97,7 +95,13 @@ export let installationSessionHtml = (d: {
       align-items: center;
       justify-content: center;
       margin-right: 12px;
-      font-size: 14px;
+      overflow: hidden;
+    }
+
+    .backend-icon img {
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
     }
 
     .backend-info {
@@ -139,7 +143,7 @@ export let installationSessionHtml = (d: {
       border: 1px solid #d2d2d7;
       border-radius: 8px;
       font-size: 15px;
-      color: #0066cc;
+      color: black;
       cursor: pointer;
       transition: all 0.2s;
       text-align: center;
@@ -160,9 +164,13 @@ export let installationSessionHtml = (d: {
     <p class="subtitle">Choose a provider to connect your repositories</p>
 
     <div class="backends">
-      ${d.backends.map(backend => `
+      ${d.backends
+        .map(
+          backend => `
         <a href="/origin/scm/installation-session/${d.sessionId}/select-backend/${backend.id}" class="backend-button">
-          <div class="backend-icon">${getBackendIcon(backend.type)}</div>
+          <div class="backend-icon">
+            <img src="${getBackendIconUrl(backend.type)}" alt="${backend.name}" />
+          </div>
           <div class="backend-info">
             <div class="backend-name">
               ${backend.name}
@@ -174,7 +182,9 @@ export let installationSessionHtml = (d: {
             <path d="M7.5 15L12.5 10L7.5 5" stroke="#86868b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </a>
-      `).join('')}
+      `
+        )
+        .join('')}
     </div>
 
     <div class="divider"></div>
@@ -185,25 +195,25 @@ export let installationSessionHtml = (d: {
   </div>
 
   <script>
-    function getBackendIcon(type) {
+    function getBackendIconUrl(type) {
       const icons = {
-        'github': '\u{1F41B}',
-        'github_enterprise': '\u{1F3E2}',
-        'gitlab': '\u{1F98A}',
-        'gitlab_selfhosted': '\u{1F6E0}'
+        'github': 'https://provider-logos.metorial-cdn.com/github.png',
+        'github_enterprise': 'https://provider-logos.metorial-cdn.com/github.png',
+        'gitlab': 'https://provider-logos.metorial-cdn.com/gitlab.svg',
+        'gitlab_selfhosted': 'https://provider-logos.metorial-cdn.com/gitlab.svg'
       };
-      return icons[type] || '\u{1F4E6}';
+      return icons[type] || 'https://provider-logos.metorial-cdn.com/github.png';
     }
   </script>
 </body>
 </html>`;
 
-function getBackendIcon(type: string): string {
+function getBackendIconUrl(type: string): string {
   const icons: Record<string, string> = {
-    github: '🐛',
-    github_enterprise: '🏢',
-    gitlab: '🦊',
-    gitlab_selfhosted: '🛠'
+    github: 'https://provider-logos.metorial-cdn.com/github.png',
+    github_enterprise: 'https://provider-logos.metorial-cdn.com/github.png',
+    gitlab: 'https://provider-logos.metorial-cdn.com/gitlab.svg',
+    gitlab_selfhosted: 'https://provider-logos.metorial-cdn.com/gitlab.svg'
   };
-  return icons[type] || '📦';
+  return icons[type] || 'https://provider-logos.metorial-cdn.com/github.png';
 }

@@ -6,7 +6,7 @@ import { completeDashboardHtml } from '../lib/templates/completeDashboard';
 import { scmBackendService, scmInstallationSessionService } from '../services';
 
 export let scmBackendSetupPublicController = createHono()
-  .get('/origin/scm/installation-session/:sessionId/setup-backend', async c => {
+  .get('/installation-session/:sessionId/setup-backend', async c => {
     let sessionId = c.req.param('sessionId');
 
     let session = await scmInstallationSessionService.getInstallationSessionPublic({
@@ -14,11 +14,9 @@ export let scmBackendSetupPublicController = createHono()
     });
 
     let tenant = await db.tenant.findUniqueOrThrow({ where: { oid: session.tenantOid } });
-    let actor = await db.actor.findUniqueOrThrow({ where: { oid: session.ownerActorOid } });
 
     let setupSession = await scmInstallationSessionService.createBackendSetupSession({
       tenant,
-      actor,
       type: 'github_enterprise',
       parentInstallationSession: session
     });
@@ -30,7 +28,21 @@ export let scmBackendSetupPublicController = createHono()
       })
     );
   })
-  .post('/origin/scm/backend-setup/:sessionId/complete', async c => {
+  .get('/backend-setup/:sessionId', async c => {
+    let sessionId = c.req.param('sessionId');
+
+    let setupSession = await scmInstallationSessionService.getBackendSetupSessionPublic({
+      sessionId
+    });
+
+    return c.html(
+      backendSetupHtml({
+        sessionId: setupSession.id,
+        installationSessionId: setupSession.parentInstallationSession?.id
+      })
+    );
+  })
+  .post('/backend-setup/:sessionId/complete', async c => {
     let sessionId = c.req.param('sessionId');
 
     let body = await useValidatedBody(
@@ -38,7 +50,6 @@ export let scmBackendSetupPublicController = createHono()
       v.object({
         type: v.union([v.literal('github_enterprise'), v.literal('gitlab_selfhosted')]),
         name: v.string(),
-        webUrl: v.string(),
         apiUrl: v.string(),
         clientId: v.string(),
         clientSecret: v.string(),
@@ -54,13 +65,26 @@ export let scmBackendSetupPublicController = createHono()
 
     let tenant = await db.tenant.findUniqueOrThrow({ where: { oid: setupSession.tenantOid } });
 
+    // Extract base URL from apiUrl (remove path like /api/v3 or /api/v4)
+    let baseUrl = new URL(body.apiUrl);
+    baseUrl.pathname = '';
+    let webUrl = baseUrl.toString().replace(/\/$/, ''); // Remove trailing slash
+
+    // Add the API path based on provider type
+    let apiUrl = body.apiUrl;
+    if (body.type === 'github_enterprise' && !apiUrl.includes('/api')) {
+      apiUrl = `${apiUrl}/api/v3`;
+    } else if (body.type === 'gitlab_selfhosted' && !apiUrl.includes('/api')) {
+      apiUrl = `${apiUrl}/api/v4`;
+    }
+
     let backend = await scmBackendService.createScmBackend({
       tenant,
       type: body.type,
       name: body.name,
       description: undefined,
-      webUrl: body.webUrl,
-      apiUrl: body.apiUrl,
+      webUrl,
+      apiUrl,
       clientId: body.clientId,
       clientSecret: body.clientSecret,
       appId: body.appId,

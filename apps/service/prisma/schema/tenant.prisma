@@ -29,5 +29,4 @@ model Actor {
 
   scmInstallations        ScmInstallation[]
   scmInstallationSessions ScmInstallationSession[]
-  scmBackendSetupSessions ScmBackendSetupSession[]
 }

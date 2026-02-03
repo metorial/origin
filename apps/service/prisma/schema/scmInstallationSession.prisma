@@ -32,9 +32,6 @@ model ScmBackendSetupSession {
   tenantOid BigInt
   tenant    Tenant @relation(fields: [tenantOid], references: [oid], onDelete: Cascade)
 
-  ownerActorOid BigInt
-  ownerActor    Actor  @relation(fields: [ownerActorOid], references: [oid], onDelete: Cascade)
-
   backendOid BigInt?     @unique
   backend    ScmBackend? @relation(fields: [backendOid], references: [oid], onDelete: Cascade)
 

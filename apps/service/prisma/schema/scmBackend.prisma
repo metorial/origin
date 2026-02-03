@@ -11,6 +11,8 @@ model ScmBackend {
 
   type ScmBackendType
 
+  defaultIdentifier String? @unique
+
   name        String
   description String?
 
@@ -34,7 +36,4 @@ model ScmBackend {
 
   installations        ScmInstallation[]
   backendSetupSessions ScmBackendSetupSession[]
-
-  @@unique([tenantOid, type, apiUrl])
-  @@unique([isDefault, type, apiUrl])
 }

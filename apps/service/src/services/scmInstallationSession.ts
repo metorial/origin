@@ -90,7 +90,6 @@ class ScmInstallationSessionServiceImpl {
 
   async createBackendSetupSession(d: {
     tenant: Tenant;
-    actor: Actor;
     type: ScmBackendType;
     parentInstallationSession?: ScmInstallationSession;
   }) {
@@ -101,7 +100,6 @@ class ScmInstallationSessionServiceImpl {
       data: {
         ...getId('scmBackendSetupSession'),
         tenantOid: d.tenant.oid,
-        ownerActorOid: d.actor.oid,
         type: d.type,
         parentInstallationSessionOid: d.parentInstallationSession?.oid,
         state,

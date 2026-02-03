@@ -47,8 +47,7 @@ export let scmRepositoryController = app.controller({
     .input(
       v.object({
         tenantId: v.string(),
-        scmInstallationId: v.string(),
-        externalAccountId: v.optional(v.string())
+        scmInstallationId: v.string()
       })
     )
     .do(async ctx => {
@@ -59,7 +58,7 @@ export let scmRepositoryController = app.controller({
 
       let repos = await scmRepoService.listRepositoryPreviews({
         installation,
-        externalAccountId: ctx.input.externalAccountId
+        externalAccountId: installation.externalAccountId
       });
 
       return {

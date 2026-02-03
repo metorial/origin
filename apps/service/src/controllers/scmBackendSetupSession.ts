@@ -1,6 +1,6 @@
 import { v } from '@lowerdeck/validation';
 import { presentScmBackendSetupSession } from '../presenters/scmBackendSetupSession';
-import { actorService, scmInstallationSessionService } from '../services';
+import { scmInstallationSessionService } from '../services';
 import { app } from './_app';
 import { tenantApp } from './tenant';
 
@@ -22,14 +22,11 @@ export let scmBackendSetupSessionController = app.controller({
     .input(
       v.object({
         tenantId: v.string(),
-        actorId: v.string(),
         type: v.enumOf(['github_enterprise', 'gitlab_selfhosted']),
         parentInstallationSessionId: v.optional(v.string())
       })
     )
     .do(async ctx => {
-      let actor = await actorService.getActorById({ id: ctx.input.actorId });
-
       let parentInstallationSession = ctx.input.parentInstallationSessionId
         ? await scmInstallationSessionService.getInstallationSession({
             sessionId: ctx.input.parentInstallationSessionId,
@@ -39,7 +36,6 @@ export let scmBackendSetupSessionController = app.controller({
 
       let session = await scmInstallationSessionService.createBackendSetupSession({
         tenant: ctx.tenant,
-        actor,
         type: ctx.input.type,
         parentInstallationSession
       });

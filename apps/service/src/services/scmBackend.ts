@@ -10,14 +10,11 @@ class scmBackendServiceImpl {
     // Ensure default GitHub.com backend exists
     await db.scmBackend.upsert({
       where: {
-        isDefault_type_apiUrl: {
-          isDefault: true,
-          type: 'github',
-          apiUrl: 'https://api.github.com'
-        }
+        defaultIdentifier: 'default::github_com'
       },
       create: {
         ...getId('scmBackend'),
+        defaultIdentifier: 'default::github_com',
         type: 'github',
         name: 'GitHub',
         description: 'GitHub.com',
@@ -43,14 +40,11 @@ class scmBackendServiceImpl {
     if (env.gl.SCM_GITLAB_CLIENT_ID && env.gl.SCM_GITLAB_CLIENT_SECRET) {
       await db.scmBackend.upsert({
         where: {
-          isDefault_type_apiUrl: {
-            isDefault: true,
-            type: 'gitlab',
-            apiUrl: 'https://gitlab.com/api/v4'
-          }
+          defaultIdentifier: 'default::gitlab_com'
         },
         create: {
           ...getId('scmBackend'),
+          defaultIdentifier: 'default::gitlab_com',
           type: 'gitlab',
           name: 'GitLab',
           description: 'GitLab.com',
