@@ -277,8 +277,8 @@ class codeBucketServiceImpl {
     });
 
     return res.files
-      .filter(f => f.fileInfo !== undefined)
-      .map(f => ({
+      .filter((f: any) => f.fileInfo !== undefined)
+      .map((f: any) => ({
         path: f.fileInfo!.path,
         size: f.fileInfo!.size,
         contentType: f.fileInfo!.contentType,
