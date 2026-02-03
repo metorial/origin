@@ -2,8 +2,11 @@ import { createHono, useValidatedQuery } from '@lowerdeck/hono';
 import { v } from '@lowerdeck/validation';
 import { completeDashboardHtml } from '../lib/templates/completeDashboard';
 import { scmAuthService, scmRepoService } from '../services';
+import { scmInstallationSessionPublicController } from './scmInstallationSession';
 
 export let scmController = createHono()
+  .route('/origin/scm/installation-session', scmInstallationSessionPublicController)
+  // .route('/', scmBackendSetupPublicController)
   .get('/origin/oauth/github/callback', async c => {
     let query = await useValidatedQuery(
       c,

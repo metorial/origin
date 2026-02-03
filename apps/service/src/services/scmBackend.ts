@@ -2,7 +2,7 @@ import { badRequestError, notFoundError, ServiceError } from '@lowerdeck/error';
 import { Service } from '@lowerdeck/service';
 import type { ScmBackend, Tenant } from '../../prisma/generated/client';
 import { db } from '../db';
-import { env } from '../env';
+import { env, SCM_GITHUB_APP_PRIVATE_KEY } from '../env';
 import { getId } from '../id';
 
 class scmBackendServiceImpl {
@@ -10,8 +10,8 @@ class scmBackendServiceImpl {
     // Ensure default GitHub.com backend exists
     await db.scmBackend.upsert({
       where: {
-        tenantOid_type_apiUrl: {
-          tenantOid: null as any, // Global backend
+        isDefault_type_apiUrl: {
+          isDefault: true,
           type: 'github',
           apiUrl: 'https://api.github.com'
         }
@@ -24,14 +24,14 @@ class scmBackendServiceImpl {
         apiUrl: 'https://api.github.com',
         webUrl: 'https://github.com',
         appId: env.gh.SCM_GITHUB_APP_ID,
-        appPrivateKey: env.gh.SCM_GITHUB_APP_PRIVATE_KEY,
+        appPrivateKey: SCM_GITHUB_APP_PRIVATE_KEY,
         clientId: env.gh.SCM_GITHUB_APP_CLIENT_ID,
         clientSecret: env.gh.SCM_GITHUB_APP_CLIENT_SECRET,
         isDefault: true
       },
       update: {
         appId: env.gh.SCM_GITHUB_APP_ID,
-        appPrivateKey: env.gh.SCM_GITHUB_APP_PRIVATE_KEY,
+        appPrivateKey: SCM_GITHUB_APP_PRIVATE_KEY,
         clientId: env.gh.SCM_GITHUB_APP_CLIENT_ID,
         clientSecret: env.gh.SCM_GITHUB_APP_CLIENT_SECRET
       }
@@ -41,8 +41,8 @@ class scmBackendServiceImpl {
     if (env.gl.SCM_GITLAB_CLIENT_ID && env.gl.SCM_GITLAB_CLIENT_SECRET) {
       await db.scmBackend.upsert({
         where: {
-          tenantOid_type_apiUrl: {
-            tenantOid: null as any, // Global backend
+          isDefault_type_apiUrl: {
+            isDefault: true,
             type: 'gitlab',
             apiUrl: 'https://gitlab.com/api/v4'
           }
@@ -120,7 +120,6 @@ class scmBackendServiceImpl {
     clientId: string;
     clientSecret: string;
   }) {
-    // Validate URLs
     try {
       new URL(d.apiUrl);
       new URL(d.webUrl);
@@ -128,6 +127,14 @@ class scmBackendServiceImpl {
       throw new ServiceError(
         badRequestError({
           message: 'Invalid URL format'
+        })
+      );
+    }
+
+    if (d.type === 'github_enterprise' && (!d.appId || !d.appPrivateKey)) {
+      throw new ServiceError(
+        badRequestError({
+          message: 'GitHub Enterprise backends require appId and appPrivateKey'
         })
       );
     }

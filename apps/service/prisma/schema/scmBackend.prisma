@@ -32,7 +32,8 @@ model ScmBackend {
   updatedAt DateTime @default(now()) @updatedAt
 
   installations        ScmInstallation[]
-  installationAttempts ScmInstallationAttempt[]
+  backendSetupSessions ScmBackendSetupSession[]
 
   @@unique([tenantOid, type, apiUrl])
+  @@unique([isDefault, type, apiUrl])
 }

@@ -9,11 +9,11 @@ import type {
 } from '../../prisma/generated/client';
 import { db } from '../db';
 import { getId } from '../id';
+import { createGitHubInstallationClient } from '../lib/githubApp';
+import { createGitLabClientWithToken } from '../lib/gitlab';
 import { createRepoWebhookQueue } from '../queues/scm/createRepoWebhook';
 import { createHandleRepoPushQueue } from '../queues/scm/handleRepoPush';
 import type { ScmAccountPreview, ScmRepoPreview } from '../types';
-import { createGitHubInstallationClient } from '../lib/githubApp';
-import { createGitLabClientWithToken } from '../lib/gitlab';
 
 class scmRepoServiceImpl {
   async listAccountPreviews(i: { installation: ScmInstallation & { backend: ScmBackend } }) {
@@ -21,7 +21,10 @@ class scmRepoServiceImpl {
       if (!i.installation.externalInstallationId) {
         throw new ServiceError(badRequestError({ message: 'Installation ID not found' }));
       }
-      let octokit = await createGitHubInstallationClient(i.installation.externalInstallationId, i.installation.backend);
+      let octokit = await createGitHubInstallationClient(
+        i.installation.externalInstallationId,
+        i.installation.backend
+      );
 
       let orgs = await octokit.request('GET /user/orgs', {
         per_page: 100
@@ -52,7 +55,10 @@ class scmRepoServiceImpl {
       if (!i.installation.accessToken) {
         throw new ServiceError(badRequestError({ message: 'Access token not found' }));
       }
-      let gitlab = createGitLabClientWithToken(i.installation.accessToken, i.installation.backend);
+      let gitlab = createGitLabClientWithToken(
+        i.installation.accessToken,
+        i.installation.backend
+      );
 
       // Get user's groups/namespaces
       let groups = await gitlab.Groups.all({ minAccessLevel: 10, perPage: 100 });
@@ -88,7 +94,10 @@ class scmRepoServiceImpl {
       if (!i.installation.externalInstallationId) {
         throw new ServiceError(badRequestError({ message: 'Installation ID not found' }));
       }
-      let octokit = await createGitHubInstallationClient(i.installation.externalInstallationId, i.installation.backend);
+      let octokit = await createGitHubInstallationClient(
+        i.installation.externalInstallationId,
+        i.installation.backend
+      );
 
       let allRepos: any[] = [];
       let page = 1;
@@ -138,7 +147,10 @@ class scmRepoServiceImpl {
       if (!i.installation.accessToken) {
         throw new ServiceError(badRequestError({ message: 'Access token not found' }));
       }
-      let gitlab = createGitLabClientWithToken(i.installation.accessToken, i.installation.backend);
+      let gitlab = createGitLabClientWithToken(
+        i.installation.accessToken,
+        i.installation.backend
+      );
 
       let allProjects: any[] = [];
 
@@ -184,7 +196,10 @@ class scmRepoServiceImpl {
       if (!i.installation.externalInstallationId) {
         throw new ServiceError(badRequestError({ message: 'Installation ID not found' }));
       }
-      let octokit = await createGitHubInstallationClient(i.installation.externalInstallationId, i.installation.backend);
+      let octokit = await createGitHubInstallationClient(
+        i.installation.externalInstallationId,
+        i.installation.backend
+      );
 
       let repoRes = await octokit.request('GET /repositories/{repository_id}', {
         repository_id: parseInt(i.externalId)
@@ -259,7 +274,10 @@ class scmRepoServiceImpl {
       if (!i.installation.accessToken) {
         throw new ServiceError(badRequestError({ message: 'Access token not found' }));
       }
-      let gitlab = createGitLabClientWithToken(i.installation.accessToken, i.installation.backend);
+      let gitlab = createGitLabClientWithToken(
+        i.installation.accessToken,
+        i.installation.backend
+      );
 
       let project = await gitlab.Projects.show(parseInt(i.externalId));
 
@@ -270,9 +288,7 @@ class scmRepoServiceImpl {
         identifier: `${hostname}/${project.namespace.full_path}`,
         provider: i.installation.provider,
         type:
-          project.namespace.kind === 'user'
-            ? ('user' as const)
-            : ('organization' as const),
+          project.namespace.kind === 'user' ? ('user' as const) : ('organization' as const),
         externalId: project.namespace.id.toString()
       };
 
@@ -344,7 +360,10 @@ class scmRepoServiceImpl {
       if (!i.installation.externalInstallationId) {
         throw new ServiceError(badRequestError({ message: 'Installation ID not found' }));
       }
-      let octokit = await createGitHubInstallationClient(i.installation.externalInstallationId, i.installation.backend);
+      let octokit = await createGitHubInstallationClient(
+        i.installation.externalInstallationId,
+        i.installation.backend
+      );
 
       let repoRes =
         i.externalAccountId == i.installation.externalAccountId
@@ -370,7 +389,10 @@ class scmRepoServiceImpl {
       if (!i.installation.accessToken) {
         throw new ServiceError(badRequestError({ message: 'Access token not found' }));
       }
-      let gitlab = createGitLabClientWithToken(i.installation.accessToken, i.installation.backend);
+      let gitlab = createGitLabClientWithToken(
+        i.installation.accessToken,
+        i.installation.backend
+      );
 
       let projectRes =
         i.externalAccountId == i.installation.externalAccountId
@@ -518,7 +540,12 @@ class scmRepoServiceImpl {
       user_username: string;
       user_email: string;
       user_name: string;
-      project: { id: number; name: string; path_with_namespace: string; default_branch: string };
+      project: {
+        id: number;
+        name: string;
+        path_with_namespace: string;
+        default_branch: string;
+      };
       commits: {
         id: string;
         message: string;
@@ -574,7 +601,10 @@ class scmRepoServiceImpl {
       if (!installation.externalInstallationId) {
         throw new ServiceError(badRequestError({ message: 'Installation ID not found' }));
       }
-      let octokit = await createGitHubInstallationClient(installation.externalInstallationId, installation.backend);
+      let octokit = await createGitHubInstallationClient(
+        installation.externalInstallationId,
+        installation.backend
+      );
 
       try {
         let refRes = await octokit.request(

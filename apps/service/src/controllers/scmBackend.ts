@@ -54,6 +54,7 @@ export let scmBackendController = app.controller({
         description: v.optional(v.string()),
         apiUrl: v.string(),
         webUrl: v.string(),
+
         appId: v.optional(v.string()),
         appPrivateKey: v.optional(v.string()),
         clientId: v.string(),

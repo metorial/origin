@@ -5,7 +5,9 @@ import { actorController } from './actor';
 import { changeNotificationController } from './changeNotification';
 import { codeBucketController } from './codeBucket';
 import { scmBackendController } from './scmBackend';
+import { scmBackendSetupSessionController } from './scmBackendSetupSession';
 import { scmInstallationController } from './scmInstallation';
+import { scmInstallationSessionController } from './scmInstallationSession';
 import { scmRepoPushController } from './scmRepoPush';
 import { scmRepositoryController } from './scmRepository';
 import { tenantController } from './tenant';
@@ -13,11 +15,16 @@ import { tenantController } from './tenant';
 export let rootController = app.controller({
   tenant: tenantController,
   actor: actorController,
+
   codeBucket: codeBucketController,
+
   scmBackend: scmBackendController,
+  scmBackendSetupSession: scmBackendSetupSessionController,
   scmInstallation: scmInstallationController,
+  scmInstallationSession: scmInstallationSessionController,
   scmRepository: scmRepositoryController,
   scmRepoPush: scmRepoPushController,
+
   changeNotification: changeNotificationController
 });
 

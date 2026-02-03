@@ -1,0 +1,271 @@
+export let backendSetupHtml = (d: { sessionId: string; installationSessionId?: string }) => `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Setup Custom Provider - Metorial</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f5f5f7;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+      padding: 32px;
+      max-width: 500px;
+      width: 100%;
+    }
+
+    .logo {
+      width: 40px;
+      height: 40px;
+      margin: 0 auto 24px;
+      display: block;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      text-align: center;
+      color: #1d1d1f;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #86868b;
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #1d1d1f;
+      margin-bottom: 8px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d2d2d7;
+      border-radius: 8px;
+      font-size: 15px;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #0066cc;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d2d2d7;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+      resize: vertical;
+      min-height: 80px;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #0066cc;
+    }
+
+    .help-text {
+      font-size: 13px;
+      color: #86868b;
+      margin-top: 4px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #0066cc;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #0055b3;
+    }
+
+    button:disabled {
+      background: #d2d2d7;
+      cursor: not-allowed;
+    }
+
+    .error {
+      background: #fff1f0;
+      border: 1px solid #ffccc7;
+      color: #cf1322;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+
+    .back-link {
+      display: block;
+      text-align: center;
+      color: #0066cc;
+      font-size: 14px;
+      margin-top: 16px;
+      text-decoration: none;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="https://cdn.metorial.com/2025-06-13--14-59-55/logos/metorial/primary_logo/raw.svg" alt="Metorial" class="logo" />
+
+    <h1>Setup Custom Provider</h1>
+    <p class="subtitle">Configure your GitHub Enterprise or GitLab instance</p>
+
+    <div id="error" class="error" style="display: none;"></div>
+
+    <form id="setupForm">
+      <div class="form-group">
+        <label for="type">Provider Type</label>
+        <select id="type" name="type" required>
+          <option value="">Select provider type...</option>
+          <option value="github_enterprise">GitHub Enterprise</option>
+          <option value="gitlab_selfhosted">GitLab Self-Hosted</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" placeholder="e.g., Company GitHub" required />
+        <div class="help-text">A friendly name for this provider</div>
+      </div>
+
+      <div class="form-group">
+        <label for="webUrl">Web URL</label>
+        <input type="url" id="webUrl" name="webUrl" placeholder="https://github.company.com" required />
+        <div class="help-text">The base URL for the web interface</div>
+      </div>
+
+      <div class="form-group">
+        <label for="apiUrl">API URL</label>
+        <input type="url" id="apiUrl" name="apiUrl" placeholder="https://api.github.company.com" required />
+        <div class="help-text">The API endpoint URL</div>
+      </div>
+
+      <div class="form-group" id="githubFields" style="display: none;">
+        <label for="appId">GitHub App ID</label>
+        <input type="text" id="appId" name="appId" placeholder="123456" />
+
+        <label for="appPrivateKey" style="margin-top: 12px;">GitHub App Private Key</label>
+        <textarea id="appPrivateKey" name="appPrivateKey" placeholder="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="clientId">OAuth Client ID</label>
+        <input type="text" id="clientId" name="clientId" required />
+      </div>
+
+      <div class="form-group">
+        <label for="clientSecret">OAuth Client Secret</label>
+        <input type="password" id="clientSecret" name="clientSecret" required />
+      </div>
+
+      <button type="submit">Setup Provider</button>
+    </form>
+
+    ${
+      d.installationSessionId
+        ? `<a href="/origin/scm/installation-session/${d.installationSessionId}" class="back-link">← Back to provider selection</a>`
+        : ''
+    }
+  </div>
+
+  <script>
+    const form = document.getElementById('setupForm');
+    const typeSelect = document.getElementById('type');
+    const githubFields = document.getElementById('githubFields');
+    const errorDiv = document.getElementById('error');
+    const apiUrlInput = document.getElementById('apiUrl');
+
+    typeSelect.addEventListener('change', (e) => {
+      const type = e.target.value;
+      if (type === 'github_enterprise') {
+        githubFields.style.display = 'block';
+        document.getElementById('appId').required = true;
+        document.getElementById('appPrivateKey').required = true;
+        apiUrlInput.placeholder = 'https://github.company.com/api/v3';
+      } else if (type === 'gitlab_selfhosted') {
+        githubFields.style.display = 'none';
+        document.getElementById('appId').required = false;
+        document.getElementById('appPrivateKey').required = false;
+        apiUrlInput.placeholder = 'https://gitlab.company.com/api/v4';
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorDiv.style.display = 'none';
+
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData.entries());
+
+      try {
+        const response = await fetch('/origin/scm/backend-setup/${d.sessionId}/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to setup provider');
+        }
+
+        const result = await response.json();
+
+        // Redirect based on whether there's a parent installation session
+        ${
+          d.installationSessionId
+            ? `window.location.href = '/origin/scm/installation-session/${d.installationSessionId}';`
+            : `window.location.href = result.redirectUrl || '/';`
+        }
+      } catch (error) {
+        errorDiv.textContent = error.message;
+        errorDiv.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>`;
