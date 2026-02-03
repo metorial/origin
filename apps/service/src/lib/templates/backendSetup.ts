@@ -273,7 +273,7 @@ export let backendSetupHtml = (d: { sessionId: string; installationSessionId?: s
       const data = Object.fromEntries(formData.entries());
 
       try {
-        const response = await fetch('/origin/scm/backend-setup/${d.sessionId}/complete', {
+        const response = await fetch(\`/origin/scm/backend-setup/${d.sessionId}/complete\`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
@@ -284,13 +284,15 @@ export let backendSetupHtml = (d: { sessionId: string; installationSessionId?: s
           throw new Error(error.message || 'Failed to setup provider');
         }
 
-        const result = await response.json();
-
-        // Redirect based on whether there's a parent installation session
-        ${
-          d.installationSessionId
-            ? `window.location.href = '/origin/scm/installation-session/${d.installationSessionId}';`
-            : `window.location.href = result.redirectUrl || '/';`
+        // Check if we got redirected (URL changed) or got HTML response
+        if (response.redirected) {
+          window.location.href = response.url;
+        } else {
+          // Server returned HTML (completion dashboard), replace current page
+          const html = await response.text();
+          document.open();
+          document.write(html);
+          document.close();
         }
       } catch (error) {
         errorDiv.textContent = error.message;

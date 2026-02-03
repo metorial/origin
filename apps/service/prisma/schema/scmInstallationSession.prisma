@@ -40,6 +40,8 @@ model ScmBackendSetupSession {
 
   type ScmBackendType
 
+  redirectUrl String?
+
   state String @unique
 
   expiresAt DateTime

@@ -3,7 +3,7 @@ import { badRequestError, ServiceError } from '@lowerdeck/error';
 import type { ScmBackend } from '../../prisma/generated/client';
 
 export let createGitLabClient = (backend?: ScmBackend) => {
-  let host = backend?.apiUrl ?? 'https://gitlab.com';
+  let host = backend?.webUrl ?? 'https://gitlab.com';
   let oauthToken = undefined; // Will be set when we have a token
 
   return new Gitlab({
@@ -13,7 +13,7 @@ export let createGitLabClient = (backend?: ScmBackend) => {
 };
 
 export let createGitLabClientWithToken = (token: string, backend?: ScmBackend) => {
-  let host = backend?.apiUrl ?? 'https://gitlab.com';
+  let host = backend?.webUrl ?? 'https://gitlab.com';
 
   return new Gitlab({
     host,

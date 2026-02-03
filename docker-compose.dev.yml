@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
     volumes:
-      - postgres_data2:/var/lib/postgresql/data
+      - postgres_data3:/var/lib/postgresql/data
     networks:
       - origin-network
 
@@ -102,7 +102,7 @@ services:
       - origin-network
 
 volumes:
-  postgres_data2:
+  postgres_data3:
     driver: local
   object-store-data:
     driver: local

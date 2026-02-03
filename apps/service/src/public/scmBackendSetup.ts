@@ -97,10 +97,13 @@ export let scmBackendSetupPublicController = createHono()
       backend
     });
 
+    // Determine where to redirect
     if (setupSession.parentInstallationSession) {
-      return c.json({
-        redirectUrl: `/origin/scm/installation-session/${setupSession.parentInstallationSession.id}`
-      });
+      return c.redirect(`/origin/scm/installation-session/${setupSession.parentInstallationSession.id}`);
+    }
+
+    if (setupSession.redirectUrl) {
+      return c.redirect(setupSession.redirectUrl);
     }
 
     return c.html(completeDashboardHtml());

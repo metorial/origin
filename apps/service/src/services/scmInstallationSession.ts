@@ -92,6 +92,7 @@ class ScmInstallationSessionServiceImpl {
     tenant: Tenant;
     type: ScmBackendType;
     parentInstallationSession?: ScmInstallationSession;
+    redirectUrl?: string;
   }) {
     let state = randomBytes(32).toString('hex');
     let expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
@@ -102,6 +103,7 @@ class ScmInstallationSessionServiceImpl {
         tenantOid: d.tenant.oid,
         type: d.type,
         parentInstallationSessionOid: d.parentInstallationSession?.oid,
+        redirectUrl: d.redirectUrl,
         state,
         expiresAt
       },
