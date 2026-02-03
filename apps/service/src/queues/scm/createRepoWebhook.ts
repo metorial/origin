@@ -36,32 +36,44 @@ export let createRepoWebhookQueueProcessor = createRepoWebhookQueue.process(asyn
       repo.installation.backend
     );
 
-    let whRes = await octokit.request('POST /repos/{owner}/{repo}/hooks', {
-      owner: repo.externalOwner,
-      repo: repo.externalName,
-      config: {
-        url: `${env.service.ORIGIN_SERVICE_URL}/origin/scm/webhook-ingest/gh/${webhookId}`,
-        content_type: 'json',
-        secret,
-        insecure_ssl: '0'
-      },
-      events: ['push'],
-      active: true
-    });
+    try {
+      let whRes = await octokit.request('POST /repos/{owner}/{repo}/hooks', {
+        owner: repo.externalOwner,
+        repo: repo.externalName,
+        config: {
+          url: `${env.service.ORIGIN_SERVICE_PUBLIC_URL}/origin/scm/webhook-ingest/gh/${webhookId}`,
+          content_type: 'json',
+          secret,
+          insecure_ssl: '0'
+        },
+        events: ['push'],
+        active: true
+      });
 
-    await db.scmRepositoryWebhook.upsert({
-      where: {
-        repoOid: repo.oid
-      },
-      create: {
-        id: webhookId,
-        repoOid: repo.oid,
-        externalId: whRes.data.id.toString(),
-        signingSecret: secret,
-        type: 'push'
-      },
-      update: {}
-    });
+      await db.scmRepositoryWebhook.upsert({
+        where: {
+          repoOid: repo.oid
+        },
+        create: {
+          id: webhookId,
+          repoOid: repo.oid,
+          externalId: whRes.data.id.toString(),
+          signingSecret: secret,
+          type: 'push'
+        },
+        update: {}
+      });
+    } catch (error: any) {
+      // If webhook already exists with this URL, ignore the error
+      if (error.status === 422) {
+        console.log(
+          `[createRepoWebhook] Webhook already exists or validation error for repo ${repo.id}:`,
+          error.message
+        );
+        return;
+      }
+      throw error;
+    }
   }
 
   if (repo.provider === 'gitlab') {
@@ -74,23 +86,39 @@ export let createRepoWebhookQueueProcessor = createRepoWebhookQueue.process(asyn
       repo.installation.backend
     );
 
-    let hook = await gitlab.ProjectHooks.add(parseInt(repo.externalId), `${env.service.ORIGIN_SERVICE_URL}/origin/scm/webhook-ingest/gl/${webhookId}`, {
-      pushEvents: true,
-      token: secret
-    });
+    try {
+      let hook = await gitlab.ProjectHooks.add(
+        parseInt(repo.externalId),
+        `${env.service.ORIGIN_SERVICE_PUBLIC_URL}/origin/scm/webhook-ingest/gl/${webhookId}`,
+        {
+          pushEvents: true,
+          token: secret
+        }
+      );
 
-    await db.scmRepositoryWebhook.upsert({
-      where: {
-        repoOid: repo.oid
-      },
-      create: {
-        id: webhookId,
-        repoOid: repo.oid,
-        externalId: hook.id.toString(),
-        signingSecret: secret,
-        type: 'push'
-      },
-      update: {}
-    });
+      await db.scmRepositoryWebhook.upsert({
+        where: {
+          repoOid: repo.oid
+        },
+        create: {
+          id: webhookId,
+          repoOid: repo.oid,
+          externalId: hook.id.toString(),
+          signingSecret: secret,
+          type: 'push'
+        },
+        update: {}
+      });
+    } catch (error: any) {
+      // If webhook already exists or validation error, log and continue
+      if (error.response?.status === 422 || error.cause?.response?.statusCode === 422) {
+        console.log(
+          `[createRepoWebhook] Webhook already exists or validation error for GitLab repo ${repo.id}:`,
+          error.message
+        );
+        return;
+      }
+      throw error;
+    }
   }
 });

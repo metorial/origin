@@ -1,12 +1,15 @@
 import { badRequestError, notFoundError, ServiceError } from '@lowerdeck/error';
-import { generatePlainId } from '@lowerdeck/id';
 import { Service } from '@lowerdeck/service';
-import type { Actor, ScmBackend, ScmProvider, Tenant } from '../../prisma/generated/client';
+import type { Actor, ScmProvider, Tenant } from '../../prisma/generated/client';
 import { db } from '../db';
 import { env } from '../env';
 import { getId } from '../id';
 import { createGitHubAppClient } from '../lib/githubApp';
-import { createGitLabClientWithToken, exchangeGitLabOAuthCode, getGitLabOAuthUrl } from '../lib/gitlab';
+import {
+  createGitLabClientWithToken,
+  exchangeGitLabOAuthCode,
+  getGitLabOAuthUrl
+} from '../lib/gitlab';
 
 class scmAuthServiceImpl {
   async getAuthorizationUrl(i: {
@@ -15,6 +18,7 @@ class scmAuthServiceImpl {
     provider: 'github' | 'gitlab';
     backendId: string;
     redirectUrl: string;
+    state: string; // State from installation session
   }) {
     let backend = await db.scmBackend.findFirst({
       where: {
@@ -24,43 +28,39 @@ class scmAuthServiceImpl {
     });
 
     if (!backend) {
-      throw new ServiceError(notFoundError('scmBackend'));
+      throw new ServiceError(notFoundError('scm_backend'));
     }
 
-    let attempt = await db.scmInstallationAttempt.create({
-      data: {
-        redirectUrl: i.redirectUrl,
-        state: generatePlainId(30),
-        tenantOid: i.tenant.oid,
-        backendOid: backend.oid,
-        ownerActorOid: i.actor.oid
-      }
-    });
-
-    if (i.provider === 'github' && backend.type === 'github') {
+    if (
+      i.provider === 'github' &&
+      (backend.type === 'github' || backend.type === 'github_enterprise')
+    ) {
       // GitHub Apps use installation authorization flow
       let webUrl = backend.webUrl;
-      let appId = backend.appId;
-      let url = new URL(`${webUrl}/apps/${appId}/installations/select_target`);
-      url.searchParams.set('state', attempt.state);
+      let appSlug = backend.appSlug;
+
+      if (!appSlug) {
+        throw new ServiceError(
+          badRequestError({
+            message: 'GitHub backend missing appSlug'
+          })
+        );
+      }
+
+      let url = new URL(`${webUrl}/apps/${appSlug}/installations/new`);
+      url.searchParams.set('state', i.state);
       return url.toString();
     }
 
-    if (i.provider === 'github' && backend.type === 'github_enterprise') {
-      // GitHub Enterprise Apps use installation authorization flow
-      let webUrl = backend.webUrl;
-      let appId = backend.appId;
-      let url = new URL(`${webUrl}/apps/${appId}/installations/select_target`);
-      url.searchParams.set('state', attempt.state);
-      return url.toString();
-    }
-
-    if (i.provider === 'gitlab' && (backend.type === 'gitlab' || backend.type === 'gitlab_selfhosted')) {
+    if (
+      i.provider === 'gitlab' &&
+      (backend.type === 'gitlab' || backend.type === 'gitlab_selfhosted')
+    ) {
       // GitLab OAuth authorization flow
       return getGitLabOAuthUrl({
         backend,
-        redirectUri: `${env.service.ORIGIN_SERVICE_URL}/origin/oauth/gitlab/callback`,
-        state: attempt.state
+        redirectUri: `${env.service.ORIGIN_SERVICE_PUBLIC_URL}/origin/oauth/gitlab/callback`,
+        state: i.state
       });
     }
 
@@ -77,15 +77,16 @@ class scmAuthServiceImpl {
     setupAction: string;
     state: string;
   }) {
-    let attempt = await db.scmInstallationAttempt.findUnique({
+    let session = await db.scmInstallationSession.findUnique({
       where: {
         state: i.state
       },
       include: {
-        backend: true
+        tenant: true,
+        ownerActor: true
       }
     });
-    if (!attempt) {
+    if (!session) {
       throw new ServiceError(
         badRequestError({
           message: 'Invalid state'
@@ -93,9 +94,25 @@ class scmAuthServiceImpl {
       );
     }
 
+    // We need to find the backend that was selected
+    // For GitHub, find the backend used in the OAuth flow
+    let backend = await db.scmBackend.findFirst({
+      where: {
+        OR: [
+          { isDefault: true, tenantOid: null, type: { in: ['github', 'github_enterprise'] } },
+          { tenantOid: session.tenantOid, type: { in: ['github', 'github_enterprise'] } }
+        ]
+      },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }]
+    });
+
+    if (!backend) {
+      throw new ServiceError(notFoundError('scm_backend.github'));
+    }
+
     if (i.provider === 'github') {
       // Get installation details using GitHub App authentication
-      let octokit = createGitHubAppClient(attempt.backend);
+      let octokit = createGitHubAppClient(backend);
 
       let installationRes = await octokit.request('GET /app/installations/{installation_id}', {
         installation_id: parseInt(i.installationId)
@@ -118,9 +135,9 @@ class scmAuthServiceImpl {
 
       let data = {
         provider: i.provider,
-        tenantOid: attempt.tenantOid,
-        backendOid: attempt.backendOid,
-        ownerActorOid: attempt.ownerActorOid,
+        tenantOid: session.tenantOid,
+        backendOid: backend.oid,
+        ownerActorOid: session.ownerActorOid,
 
         externalInstallationId: i.installationId,
         accountType: accountType as 'user' | 'organization',
@@ -132,12 +149,12 @@ class scmAuthServiceImpl {
         externalAccountImageUrl: account.avatar_url || null
       };
 
-      return db.scmInstallation.upsert({
+      let createdInstallation = await db.scmInstallation.upsert({
         where: {
           tenantOid_provider_backendOid_externalAccountId: {
-            tenantOid: attempt.tenantOid,
+            tenantOid: session.tenantOid,
             provider: i.provider,
-            backendOid: attempt.backendOid,
+            backendOid: backend.oid,
             externalAccountId: account.id.toString()
           }
         },
@@ -147,6 +164,14 @@ class scmAuthServiceImpl {
           ...data
         }
       });
+
+      // Complete the installation session
+      await db.scmInstallationSession.update({
+        where: { id: session.id },
+        data: { installationOid: createdInstallation.oid }
+      });
+
+      return createdInstallation;
     }
 
     throw new ServiceError(
@@ -156,20 +181,17 @@ class scmAuthServiceImpl {
     );
   }
 
-  async handleGitLabOAuthCallback(i: {
-    provider: 'gitlab';
-    code: string;
-    state: string;
-  }) {
-    let attempt = await db.scmInstallationAttempt.findUnique({
+  async handleGitLabOAuthCallback(i: { provider: 'gitlab'; code: string; state: string }) {
+    let session = await db.scmInstallationSession.findUnique({
       where: {
         state: i.state
       },
       include: {
-        backend: true
+        tenant: true,
+        ownerActor: true
       }
     });
-    if (!attempt) {
+    if (!session) {
       throw new ServiceError(
         badRequestError({
           message: 'Invalid state'
@@ -177,23 +199,38 @@ class scmAuthServiceImpl {
       );
     }
 
+    // Find the GitLab backend
+    let backend = await db.scmBackend.findFirst({
+      where: {
+        OR: [
+          { isDefault: true, tenantOid: null, type: { in: ['gitlab', 'gitlab_selfhosted'] } },
+          { tenantOid: session.tenantOid, type: { in: ['gitlab', 'gitlab_selfhosted'] } }
+        ]
+      },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }]
+    });
+
+    if (!backend) {
+      throw new ServiceError(notFoundError('scm_backend.gitlab'));
+    }
+
     if (i.provider === 'gitlab') {
       // Exchange code for tokens
       let { accessToken, refreshToken } = await exchangeGitLabOAuthCode({
-        backend: attempt.backend,
+        backend,
         code: i.code,
-        redirectUri: `${env.service.ORIGIN_SERVICE_URL}/origin/oauth/gitlab/callback`
+        redirectUri: `${env.service.ORIGIN_SERVICE_PUBLIC_URL}/origin/oauth/gitlab/callback`
       });
 
       // Get user info
-      let gitlab = createGitLabClientWithToken(accessToken, attempt.backend);
+      let gitlab = createGitLabClientWithToken(accessToken, backend);
       let user = await gitlab.Users.showCurrentUser();
 
       let data = {
         provider: i.provider,
-        tenantOid: attempt.tenantOid,
-        backendOid: attempt.backendOid,
-        ownerActorOid: attempt.ownerActorOid,
+        tenantOid: session.tenantOid,
+        backendOid: backend.oid,
+        ownerActorOid: session.ownerActorOid,
 
         accessToken,
         refreshToken,
@@ -206,12 +243,12 @@ class scmAuthServiceImpl {
         externalAccountImageUrl: user.avatar_url || null
       };
 
-      return db.scmInstallation.upsert({
+      let createdInstallation = await db.scmInstallation.upsert({
         where: {
           tenantOid_provider_backendOid_externalAccountId: {
-            tenantOid: attempt.tenantOid,
+            tenantOid: session.tenantOid,
             provider: i.provider,
-            backendOid: attempt.backendOid,
+            backendOid: backend.oid,
             externalAccountId: user.id.toString()
           }
         },
@@ -221,6 +258,14 @@ class scmAuthServiceImpl {
           ...data
         }
       });
+
+      // Complete the installation session
+      await db.scmInstallationSession.update({
+        where: { id: session.id },
+        data: { installationOid: createdInstallation.oid }
+      });
+
+      return createdInstallation;
     }
 
     throw new ServiceError(

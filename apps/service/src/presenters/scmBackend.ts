@@ -8,6 +8,7 @@ export let scmBackendPresenter = (backend: ScmBackend) => ({
   description: backend.description,
   apiUrl: backend.apiUrl,
   webUrl: backend.webUrl,
+  appSlug: backend.appSlug,
   isDefault: backend.isDefault,
   // Don't expose sensitive credentials
   hasCredentials: !!(backend.appId && backend.appPrivateKey),

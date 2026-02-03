@@ -11,6 +11,8 @@ model ScmBackend {
 
   type ScmBackendType
 
+  defaultIdentifier String? @unique
+
   name        String
   description String?
 
@@ -18,6 +20,7 @@ model ScmBackend {
   webUrl String // e.g., "https://github.com", "https://gitlab.com", "https://gitlab.company.com"
 
   appId         String?
+  appSlug       String? // GitHub App slug (e.g., "my-app-name")
   appPrivateKey String?
 
   clientId     String?
@@ -32,7 +35,5 @@ model ScmBackend {
   updatedAt DateTime @default(now()) @updatedAt
 
   installations        ScmInstallation[]
-  installationAttempts ScmInstallationAttempt[]
-
-  @@unique([tenantOid, type, apiUrl])
+  backendSetupSessions ScmBackendSetupSession[]
 }

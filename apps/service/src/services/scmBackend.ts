@@ -2,7 +2,7 @@ import { badRequestError, notFoundError, ServiceError } from '@lowerdeck/error';
 import { Service } from '@lowerdeck/service';
 import type { ScmBackend, Tenant } from '../../prisma/generated/client';
 import { db } from '../db';
-import { env } from '../env';
+import { env, SCM_GITHUB_APP_PRIVATE_KEY } from '../env';
 import { getId } from '../id';
 
 class scmBackendServiceImpl {
@@ -10,28 +10,27 @@ class scmBackendServiceImpl {
     // Ensure default GitHub.com backend exists
     await db.scmBackend.upsert({
       where: {
-        tenantOid_type_apiUrl: {
-          tenantOid: null as any, // Global backend
-          type: 'github',
-          apiUrl: 'https://api.github.com'
-        }
+        defaultIdentifier: 'default::github_com'
       },
       create: {
         ...getId('scmBackend'),
+        defaultIdentifier: 'default::github_com',
         type: 'github',
         name: 'GitHub',
         description: 'GitHub.com',
         apiUrl: 'https://api.github.com',
         webUrl: 'https://github.com',
         appId: env.gh.SCM_GITHUB_APP_ID,
-        appPrivateKey: env.gh.SCM_GITHUB_APP_PRIVATE_KEY,
+        appSlug: env.gh.SCM_GITHUB_APP_SLUG,
+        appPrivateKey: SCM_GITHUB_APP_PRIVATE_KEY,
         clientId: env.gh.SCM_GITHUB_APP_CLIENT_ID,
         clientSecret: env.gh.SCM_GITHUB_APP_CLIENT_SECRET,
         isDefault: true
       },
       update: {
         appId: env.gh.SCM_GITHUB_APP_ID,
-        appPrivateKey: env.gh.SCM_GITHUB_APP_PRIVATE_KEY,
+        appSlug: env.gh.SCM_GITHUB_APP_SLUG,
+        appPrivateKey: SCM_GITHUB_APP_PRIVATE_KEY,
         clientId: env.gh.SCM_GITHUB_APP_CLIENT_ID,
         clientSecret: env.gh.SCM_GITHUB_APP_CLIENT_SECRET
       }
@@ -41,14 +40,11 @@ class scmBackendServiceImpl {
     if (env.gl.SCM_GITLAB_CLIENT_ID && env.gl.SCM_GITLAB_CLIENT_SECRET) {
       await db.scmBackend.upsert({
         where: {
-          tenantOid_type_apiUrl: {
-            tenantOid: null as any, // Global backend
-            type: 'gitlab',
-            apiUrl: 'https://gitlab.com/api/v4'
-          }
+          defaultIdentifier: 'default::gitlab_com'
         },
         create: {
           ...getId('scmBackend'),
+          defaultIdentifier: 'default::gitlab_com',
           type: 'gitlab',
           name: 'GitLab',
           description: 'GitLab.com',
@@ -78,7 +74,7 @@ class scmBackendServiceImpl {
     });
 
     if (!backend) {
-      throw new ServiceError(notFoundError('scmBackend'));
+      throw new ServiceError(notFoundError('scm_backend'));
     }
 
     return backend;
@@ -93,7 +89,7 @@ class scmBackendServiceImpl {
     });
 
     if (!backend) {
-      throw new ServiceError(notFoundError('scmBackend'));
+      throw new ServiceError(notFoundError('scm_backend'));
     }
 
     return backend;
@@ -116,11 +112,11 @@ class scmBackendServiceImpl {
     apiUrl: string;
     webUrl: string;
     appId?: string;
+    appSlug?: string;
     appPrivateKey?: string;
     clientId: string;
     clientSecret: string;
   }) {
-    // Validate URLs
     try {
       new URL(d.apiUrl);
       new URL(d.webUrl);
@@ -128,6 +124,14 @@ class scmBackendServiceImpl {
       throw new ServiceError(
         badRequestError({
           message: 'Invalid URL format'
+        })
+      );
+    }
+
+    if (d.type === 'github_enterprise' && (!d.appId || !d.appSlug || !d.appPrivateKey)) {
+      throw new ServiceError(
+        badRequestError({
+          message: 'GitHub Enterprise backends require appId, appSlug, and appPrivateKey'
         })
       );
     }
@@ -142,6 +146,7 @@ class scmBackendServiceImpl {
         apiUrl: d.apiUrl,
         webUrl: d.webUrl,
         appId: d.appId,
+        appSlug: d.appSlug,
         appPrivateKey: d.appPrivateKey,
         clientId: d.clientId,
         clientSecret: d.clientSecret,
@@ -155,6 +160,7 @@ class scmBackendServiceImpl {
     name?: string;
     description?: string;
     appId?: string;
+    appSlug?: string;
     appPrivateKey?: string;
     clientId?: string;
     clientSecret?: string;
@@ -173,6 +179,7 @@ class scmBackendServiceImpl {
         name: d.name,
         description: d.description,
         appId: d.appId,
+        appSlug: d.appSlug,
         appPrivateKey: d.appPrivateKey,
         clientId: d.clientId,
         clientSecret: d.clientSecret

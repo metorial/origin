@@ -16,7 +16,7 @@ class ScmInstallationServiceImpl {
       }
     });
     if (!scmInstallation)
-      throw new ServiceError(notFoundError('server_deployment', d.scmInstallationId));
+      throw new ServiceError(notFoundError('scm_installation', d.scmInstallationId));
 
     return scmInstallation;
   }

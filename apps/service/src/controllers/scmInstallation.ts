@@ -1,6 +1,6 @@
 import { v } from '@lowerdeck/validation';
 import { scmInstallationPresenter } from '../presenters/scmInstallation';
-import { actorService, scmAuthService, scmInstallationService } from '../services';
+import { actorService, scmInstallationService } from '../services';
 import { app } from './_app';
 import { tenantApp } from './tenant';
 
@@ -17,31 +17,6 @@ export let scmInstallationApp = tenantApp.use(async ctx => {
 });
 
 export let scmInstallationController = app.controller({
-  getAuthorizationUrl: tenantApp
-    .handler()
-    .input(
-      v.object({
-        tenantId: v.string(),
-        actorId: v.string(),
-        backendId: v.string(),
-        provider: v.enumOf(['github', 'gitlab']),
-        redirectUrl: v.string()
-      })
-    )
-    .do(async ctx => {
-      let actor = await actorService.getActorById({ id: ctx.input.actorId });
-
-      let url = await scmAuthService.getAuthorizationUrl({
-        tenant: ctx.tenant,
-        actor,
-        backendId: ctx.input.backendId,
-        provider: ctx.input.provider,
-        redirectUrl: ctx.input.redirectUrl
-      });
-
-      return { url };
-    }),
-
   list: tenantApp
     .handler()
     .input(

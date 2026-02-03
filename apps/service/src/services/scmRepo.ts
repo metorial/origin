@@ -9,42 +9,24 @@ import type {
 } from '../../prisma/generated/client';
 import { db } from '../db';
 import { getId } from '../id';
+import { createGitHubInstallationClient } from '../lib/githubApp';
+import { createGitLabClientWithToken } from '../lib/gitlab';
 import { createRepoWebhookQueue } from '../queues/scm/createRepoWebhook';
 import { createHandleRepoPushQueue } from '../queues/scm/handleRepoPush';
 import type { ScmAccountPreview, ScmRepoPreview } from '../types';
-import { createGitHubInstallationClient } from '../lib/githubApp';
-import { createGitLabClientWithToken } from '../lib/gitlab';
 
 class scmRepoServiceImpl {
   async listAccountPreviews(i: { installation: ScmInstallation & { backend: ScmBackend } }) {
     if (i.installation.provider == 'github') {
-      if (!i.installation.externalInstallationId) {
-        throw new ServiceError(badRequestError({ message: 'Installation ID not found' }));
-      }
-      let octokit = await createGitHubInstallationClient(i.installation.externalInstallationId, i.installation.backend);
-
-      let orgs = await octokit.request('GET /user/orgs', {
-        per_page: 100
-      });
-
-      let user = await octokit.request('GET /user');
-
+      // For GitHub Apps, the installation is tied to a single account
+      // Return that account directly from the installation data
       return [
         {
           provider: i.installation.provider,
-          externalId: user.data.id.toString(),
-          name: user.data.login,
-          identifier: `github.com/${user.data.login}`
-        } satisfies ScmAccountPreview,
-        ...orgs.data.map(
-          o =>
-            ({
-              provider: i.installation.provider,
-              externalId: o.id.toString(),
-              name: o.login,
-              identifier: `github.com/${o.login}`
-            }) satisfies ScmAccountPreview
-        )
+          externalId: i.installation.externalAccountId,
+          name: i.installation.externalAccountLogin,
+          identifier: `github.com/${i.installation.externalAccountLogin}`
+        } satisfies ScmAccountPreview
       ];
     }
 
@@ -52,7 +34,10 @@ class scmRepoServiceImpl {
       if (!i.installation.accessToken) {
         throw new ServiceError(badRequestError({ message: 'Access token not found' }));
       }
-      let gitlab = createGitLabClientWithToken(i.installation.accessToken, i.installation.backend);
+      let gitlab = createGitLabClientWithToken(
+        i.installation.accessToken,
+        i.installation.backend
+      );
 
       // Get user's groups/namespaces
       let groups = await gitlab.Groups.all({ minAccessLevel: 10, perPage: 100 });
@@ -88,33 +73,34 @@ class scmRepoServiceImpl {
       if (!i.installation.externalInstallationId) {
         throw new ServiceError(badRequestError({ message: 'Installation ID not found' }));
       }
-      let octokit = await createGitHubInstallationClient(i.installation.externalInstallationId, i.installation.backend);
+      let octokit = await createGitHubInstallationClient(
+        i.installation.externalInstallationId,
+        i.installation.backend
+      );
 
+      // For GitHub Apps, use the installation repositories endpoint
+      // This lists all repositories the installation has access to
       let allRepos: any[] = [];
       let page = 1;
 
       while (true) {
-        let currentRepos =
-          i.externalAccountId == i.installation.externalAccountId
-            ? await octokit.request('GET /user/repos', {
-                per_page: 100,
-                page,
-                visibility: 'all',
-                affiliation: 'owner'
-              })
-            : await octokit.request('GET /orgs/{org}/repos', {
-                org: i.externalAccountId!,
-                page,
-                per_page: 100
-              });
+        let response = await octokit.request('GET /installation/repositories', {
+          per_page: 100,
+          page
+        });
 
-        allRepos.push(...currentRepos.data);
+        allRepos.push(...response.data.repositories);
 
-        if (currentRepos.data.length < 100) break;
+        if (response.data.repositories.length < 100) break;
         page++;
       }
 
-      return allRepos.map(
+      // Filter by externalAccountId if provided (to support account-specific filtering in UI)
+      let filteredRepos = i.externalAccountId
+        ? allRepos.filter(r => r.owner.id.toString() === i.externalAccountId)
+        : allRepos;
+
+      return filteredRepos.map(
         r =>
           ({
             provider: i.installation.provider,
@@ -125,7 +111,7 @@ class scmRepoServiceImpl {
             updatedAt: r.updated_at ? new Date(r.updated_at) : new Date(),
             lastPushedAt: r.pushed_at ? new Date(r.pushed_at) : null,
             account: {
-              externalId: i.externalAccountId!,
+              externalId: r.owner.id.toString(),
               name: r.owner.login,
               identifier: `github.com/${r.owner.login}`,
               provider: i.installation.provider
@@ -138,7 +124,10 @@ class scmRepoServiceImpl {
       if (!i.installation.accessToken) {
         throw new ServiceError(badRequestError({ message: 'Access token not found' }));
       }
-      let gitlab = createGitLabClientWithToken(i.installation.accessToken, i.installation.backend);
+      let gitlab = createGitLabClientWithToken(
+        i.installation.accessToken,
+        i.installation.backend
+      );
 
       let allProjects: any[] = [];
 
@@ -184,7 +173,10 @@ class scmRepoServiceImpl {
       if (!i.installation.externalInstallationId) {
         throw new ServiceError(badRequestError({ message: 'Installation ID not found' }));
       }
-      let octokit = await createGitHubInstallationClient(i.installation.externalInstallationId, i.installation.backend);
+      let octokit = await createGitHubInstallationClient(
+        i.installation.externalInstallationId,
+        i.installation.backend
+      );
 
       let repoRes = await octokit.request('GET /repositories/{repository_id}', {
         repository_id: parseInt(i.externalId)
@@ -259,7 +251,10 @@ class scmRepoServiceImpl {
       if (!i.installation.accessToken) {
         throw new ServiceError(badRequestError({ message: 'Access token not found' }));
       }
-      let gitlab = createGitLabClientWithToken(i.installation.accessToken, i.installation.backend);
+      let gitlab = createGitLabClientWithToken(
+        i.installation.accessToken,
+        i.installation.backend
+      );
 
       let project = await gitlab.Projects.show(parseInt(i.externalId));
 
@@ -270,9 +265,7 @@ class scmRepoServiceImpl {
         identifier: `${hostname}/${project.namespace.full_path}`,
         provider: i.installation.provider,
         type:
-          project.namespace.kind === 'user'
-            ? ('user' as const)
-            : ('organization' as const),
+          project.namespace.kind === 'user' ? ('user' as const) : ('organization' as const),
         externalId: project.namespace.id.toString()
       };
 
@@ -344,21 +337,46 @@ class scmRepoServiceImpl {
       if (!i.installation.externalInstallationId) {
         throw new ServiceError(badRequestError({ message: 'Installation ID not found' }));
       }
-      let octokit = await createGitHubInstallationClient(i.installation.externalInstallationId, i.installation.backend);
+      let octokit = await createGitHubInstallationClient(
+        i.installation.externalInstallationId,
+        i.installation.backend
+      );
 
-      let repoRes =
-        i.externalAccountId == i.installation.externalAccountId
-          ? await octokit.request('POST /user/repos', {
-              name: i.name,
-              description: i.description,
-              private: i.isPrivate
-            })
-          : await octokit.request('POST /orgs/{org}/repos', {
-              org: i.externalAccountId,
-              name: i.name,
-              description: i.description,
-              private: i.isPrivate
-            });
+      // For GitHub Apps:
+      // - Organizations: use /orgs/{org}/repos
+      // - Users: use /user/repos (requires Repository Administration: Read & Write permission)
+      let repoRes;
+
+      try {
+        if (i.installation.accountType === 'organization') {
+          repoRes = await octokit.request('POST /orgs/{org}/repos', {
+            org: i.installation.externalAccountLogin,
+            name: i.name,
+            description: i.description,
+            private: i.isPrivate
+          });
+        } else {
+          repoRes = await octokit.request('POST /user/repos', {
+            name: i.name,
+            description: i.description,
+            private: i.isPrivate
+          });
+        }
+      } catch (error: any) {
+        // Handle repository name conflict
+        if (error.status === 422 && error.response?.data?.errors) {
+          let errors = error.response.data.errors;
+          let nameError = errors.find((e: any) => e.field === 'name');
+          if (nameError) {
+            throw new ServiceError(
+              badRequestError({
+                message: `Repository name "${i.name}" already exists in this account. Please choose a different name.`
+              })
+            );
+          }
+        }
+        throw error;
+      }
 
       return await this.linkRepository({
         installation: i.installation,
@@ -370,21 +388,18 @@ class scmRepoServiceImpl {
       if (!i.installation.accessToken) {
         throw new ServiceError(badRequestError({ message: 'Access token not found' }));
       }
-      let gitlab = createGitLabClientWithToken(i.installation.accessToken, i.installation.backend);
+      let gitlab = createGitLabClientWithToken(
+        i.installation.accessToken,
+        i.installation.backend
+      );
 
-      let projectRes =
-        i.externalAccountId == i.installation.externalAccountId
-          ? await gitlab.Projects.create({
-              name: i.name,
-              description: i.description,
-              visibility: i.isPrivate ? 'private' : 'public'
-            })
-          : await gitlab.Projects.create({
-              name: i.name,
-              description: i.description,
-              visibility: i.isPrivate ? 'private' : 'public',
-              namespaceId: parseInt(i.externalAccountId)
-            });
+      // Always pass namespaceId to create in the correct namespace (user or group)
+      let projectRes = await gitlab.Projects.create({
+        name: i.name,
+        description: i.description,
+        visibility: i.isPrivate ? 'private' : 'public',
+        namespaceId: parseInt(i.externalAccountId)
+      });
 
       return await this.linkRepository({
         installation: i.installation,
@@ -518,7 +533,12 @@ class scmRepoServiceImpl {
       user_username: string;
       user_email: string;
       user_name: string;
-      project: { id: number; name: string; path_with_namespace: string; default_branch: string };
+      project: {
+        id: number;
+        name: string;
+        path_with_namespace: string;
+        default_branch: string;
+      };
       commits: {
         id: string;
         message: string;
@@ -574,7 +594,10 @@ class scmRepoServiceImpl {
       if (!installation.externalInstallationId) {
         throw new ServiceError(badRequestError({ message: 'Installation ID not found' }));
       }
-      let octokit = await createGitHubInstallationClient(installation.externalInstallationId, installation.backend);
+      let octokit = await createGitHubInstallationClient(
+        installation.externalInstallationId,
+        installation.backend
+      );
 
       try {
         let refRes = await octokit.request(

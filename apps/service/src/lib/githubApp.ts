@@ -1,11 +1,11 @@
 import { createAppAuth } from '@octokit/auth-app';
 import { Octokit } from '@octokit/core';
 import type { ScmBackend } from '../../prisma/generated/client';
-import { env } from '../env';
+import { env, SCM_GITHUB_APP_PRIVATE_KEY } from '../env';
 
 export let createGitHubAppClient = (backend?: ScmBackend) => {
   let appId = backend?.appId ?? env.gh.SCM_GITHUB_APP_ID;
-  let privateKey = (backend?.appPrivateKey ?? env.gh.SCM_GITHUB_APP_PRIVATE_KEY).replace(
+  let privateKey = (backend?.appPrivateKey ?? SCM_GITHUB_APP_PRIVATE_KEY).replace(
     /\\n/g,
     '\n'
   );
@@ -26,7 +26,7 @@ export let createGitHubInstallationClient = async (
   backend?: ScmBackend
 ) => {
   let appId = backend?.appId ?? env.gh.SCM_GITHUB_APP_ID;
-  let privateKey = (backend?.appPrivateKey ?? env.gh.SCM_GITHUB_APP_PRIVATE_KEY).replace(
+  let privateKey = (backend?.appPrivateKey ?? SCM_GITHUB_APP_PRIVATE_KEY).replace(
     /\\n/g,
     '\n'
   );

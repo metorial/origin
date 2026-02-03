@@ -54,7 +54,9 @@ export let scmBackendController = app.controller({
         description: v.optional(v.string()),
         apiUrl: v.string(),
         webUrl: v.string(),
+
         appId: v.optional(v.string()),
+        appSlug: v.optional(v.string()),
         appPrivateKey: v.optional(v.string()),
         clientId: v.string(),
         clientSecret: v.string()
@@ -69,6 +71,7 @@ export let scmBackendController = app.controller({
         apiUrl: ctx.input.apiUrl,
         webUrl: ctx.input.webUrl,
         appId: ctx.input.appId,
+        appSlug: ctx.input.appSlug,
         appPrivateKey: ctx.input.appPrivateKey,
         clientId: ctx.input.clientId,
         clientSecret: ctx.input.clientSecret
@@ -86,6 +89,7 @@ export let scmBackendController = app.controller({
         name: v.optional(v.string()),
         description: v.optional(v.string()),
         appId: v.optional(v.string()),
+        appSlug: v.optional(v.string()),
         appPrivateKey: v.optional(v.string()),
         clientId: v.optional(v.string()),
         clientSecret: v.optional(v.string())
@@ -97,6 +101,7 @@ export let scmBackendController = app.controller({
         name: ctx.input.name,
         description: ctx.input.description,
         appId: ctx.input.appId,
+        appSlug: ctx.input.appSlug,
         appPrivateKey: ctx.input.appPrivateKey,
         clientId: ctx.input.clientId,
         clientSecret: ctx.input.clientSecret

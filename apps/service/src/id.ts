@@ -15,7 +15,8 @@ export let ID = createIdGenerator({
   scmAccount: idType.sorted('osa_'),
   scmRepository: idType.sorted('osr_'),
   scmInstallation: idType.sorted('osi_'),
-  scmInstallationAttempt: idType.sorted('ost_'),
+  scmInstallationSession: idType.sorted('osis_'),
+  scmBackendSetupSession: idType.sorted('obss_'),
   scmRepositoryWebhook: idType.sorted('osw_'),
   scmRepositoryReceivedEvent: idType.sorted('ose_'),
   scmRepositoryPush: idType.sorted('osp_')

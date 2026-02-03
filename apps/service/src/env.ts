@@ -6,7 +6,7 @@ export let env = createValidatedEnv({
     REDIS_URL: v.string(),
     DATABASE_URL: v.string(),
 
-    ORIGIN_SERVICE_URL: v.string()
+    ORIGIN_SERVICE_PUBLIC_URL: v.string()
   },
 
   codeBucket: {
@@ -17,7 +17,8 @@ export let env = createValidatedEnv({
 
   gh: {
     SCM_GITHUB_APP_ID: v.string(),
-    SCM_GITHUB_APP_PRIVATE_KEY: v.string(),
+    SCM_GITHUB_APP_SLUG: v.string(),
+    SCM_GITHUB_APP_PRIVATE_KEY_BASE_64: v.string(),
     SCM_GITHUB_APP_CLIENT_ID: v.string(),
     SCM_GITHUB_APP_CLIENT_SECRET: v.string()
   },
@@ -27,3 +28,5 @@ export let env = createValidatedEnv({
     SCM_GITLAB_CLIENT_SECRET: v.optional(v.string())
   }
 });
+
+export let SCM_GITHUB_APP_PRIVATE_KEY = atob(env.gh.SCM_GITHUB_APP_PRIVATE_KEY_BASE_64);

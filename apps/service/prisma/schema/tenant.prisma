@@ -10,7 +10,8 @@ model Tenant {
   scmAccounts             ScmAccount[]
   scmBackends             ScmBackend[]
   scmInstallations        ScmInstallation[]
-  scmInstallationAttempts ScmInstallationAttempt[]
+  scmInstallationSessions ScmInstallationSession[]
+  scmBackendSetupSessions ScmBackendSetupSession[]
   codeBuckets             CodeBucket[]
   scmRepositories         ScmRepository[]
   scmRepositoryPushes     ScmRepositoryPush[]
@@ -27,5 +28,5 @@ model Actor {
   createdAt DateTime @default(now())
 
   scmInstallations        ScmInstallation[]
-  scmInstallationAttempts ScmInstallationAttempt[]
+  scmInstallationSessions ScmInstallationSession[]
 }

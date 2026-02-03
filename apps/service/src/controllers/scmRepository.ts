@@ -59,7 +59,7 @@ export let scmRepositoryController = app.controller({
 
       let repos = await scmRepoService.listRepositoryPreviews({
         installation,
-        externalAccountId: ctx.input.externalAccountId
+        externalAccountId: ctx.input.externalAccountId ?? installation.externalAccountId
       });
 
       return {
