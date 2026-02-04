@@ -30,6 +30,9 @@ class ScmInstallationServiceImpl {
             where: {
               tenantOid: d.tenant.oid,
               ownerActorOid: d.actor.oid
+            },
+            include: {
+              backend: true
             }
           })
       )

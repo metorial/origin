@@ -86,8 +86,9 @@ model ScmInstallation {
   externalInstallationId String?
   accountType            ScmAccountType?
 
-  accessToken  String?
-  refreshToken String?
+  accessToken          String?
+  refreshToken         String?
+  accessTokenExpiresAt DateTime?
 
   externalAccountId       String
   externalAccountLogin    String

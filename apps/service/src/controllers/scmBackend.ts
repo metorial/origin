@@ -29,9 +29,7 @@ export let scmBackendController = app.controller({
         tenant: ctx.tenant
       });
 
-      return {
-        backends: backends.map(scmBackendPresenter)
-      };
+      return backends.map(scmBackendPresenter);
     }),
 
   get: scmBackendApp

@@ -254,3 +254,30 @@ func (rs *RcpService) ExportBucketToGitlab(ctx context.Context, req *rpc.ExportB
 
 	return &rpc.ExportBucketToGitlabResponse{}, nil
 }
+
+func (rs *RcpService) SetBucketFiles(ctx context.Context, req *rpc.SetBucketFilesRequest) (*rpc.SetBucketFilesResponse, error) {
+	if req.BucketId == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "bucket_id is required")
+	}
+
+	if len(req.Files) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "at least one file is required")
+	}
+
+	contents := make([]*fs.FileContentsBase, 0, len(req.Files))
+	for _, f := range req.Files {
+		if f.Path == "" {
+			return nil, status.Errorf(codes.InvalidArgument, "file path cannot be empty")
+		}
+		contents = append(contents, &fs.FileContentsBase{
+			Path:    f.Path,
+			Content: f.Content,
+		})
+	}
+
+	if err := rs.fsm.SetBucketFiles(ctx, req.BucketId, contents); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to set files: %v", err)
+	}
+
+	return &rpc.SetBucketFilesResponse{}, nil
+}

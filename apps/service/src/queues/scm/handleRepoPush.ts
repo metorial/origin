@@ -1,7 +1,8 @@
 import { createQueue, QueueRetryError } from '@lowerdeck/queue';
 import { db } from '../../db';
 import { env } from '../../env';
-import { changeNotificationService, codeBucketService } from '../../services';
+import { getId } from '../../id';
+import { codeBucketService } from '../../services';
 
 export let createHandleRepoPushQueue = createQueue<{ pushId: string }>({
   name: 'ori/rep/hndl-push',
@@ -21,12 +22,6 @@ export let createHandleRepoPushQueueProcessor = createHandleRepoPushQueue.proces
       where: { oid: push.tenantOid }
     });
 
-    await changeNotificationService.createForRepoPush({
-      tenant,
-      repo: push.repo,
-      repoPush: push
-    });
-
     // Sync all synced buckets for this repo and branch
     let syncedBuckets = await db.codeBucket.findMany({
       where: {
@@ -42,5 +37,15 @@ export let createHandleRepoPushQueueProcessor = createHandleRepoPushQueue.proces
         repo: push.repo
       });
     }
+
+    await db.changeNotification.create({
+      data: {
+        ...getId('changeNotification'),
+        type: 'repo_push',
+        tenantOid: tenant.oid,
+        repoOid: push.repo.oid,
+        repoPushOid: push.oid
+      }
+    });
   }
 );

@@ -1,40 +1,18 @@
 import { notFoundError, ServiceError } from '@lowerdeck/error';
 import { Paginator } from '@lowerdeck/pagination';
 import { Service } from '@lowerdeck/service';
-import type { ScmRepository, ScmRepositoryPush, Tenant } from '../../prisma/generated/client';
 import { db } from '../db';
-import { getId } from '../id';
 
 class ChangeNotificationServiceImpl {
-  async createForRepoPush(d: {
-    tenant: Tenant;
-    repo: ScmRepository;
-    repoPush: ScmRepositoryPush;
-  }) {
-    return db.changeNotification.create({
-      data: {
-        ...getId('changeNotification'),
-        type: 'repo_push',
-        tenantOid: d.tenant.oid,
-        repoOid: d.repo.oid,
-        repoPushOid: d.repoPush.oid
-      },
-      include: {
-        repo: { include: { account: true } },
-        repoPush: { include: { repo: true } }
-      }
-    });
-  }
-
-  async getChangeNotificationById(d: { tenant: Tenant; changeNotificationId: string }) {
+  async getChangeNotificationById(d: { changeNotificationId: string }) {
     let notification = await db.changeNotification.findFirst({
       where: {
-        id: d.changeNotificationId,
-        tenantOid: d.tenant.oid
+        id: d.changeNotificationId
       },
       include: {
         repo: { include: { account: true } },
-        repoPush: { include: { repo: true } }
+        repoPush: { include: { repo: true } },
+        tenant: true
       }
     });
     if (!notification)
@@ -43,22 +21,18 @@ class ChangeNotificationServiceImpl {
     return notification;
   }
 
-  async listChangeNotifications(d: { tenant: Tenant; repoId?: string }) {
+  async listChangeNotifications(d: { repoId?: string }) {
     return Paginator.create(({ prisma }) =>
       prisma(async opts =>
         db.changeNotification.findMany({
           ...opts,
           where: {
-            tenantOid: d.tenant.oid,
-            ...(d.repoId && {
-              repo: {
-                id: d.repoId
-              }
-            })
+            ...(d.repoId && { repo: { id: d.repoId } })
           },
           include: {
             repo: { include: { account: true } },
-            repoPush: { include: { repo: true } }
+            repoPush: { include: { repo: true } },
+            tenant: true
           },
           orderBy: {
             createdAt: 'desc'

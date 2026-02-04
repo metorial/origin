@@ -1,3 +1,4 @@
+import { Paginator } from '@lowerdeck/pagination';
 import { v } from '@lowerdeck/validation';
 import { scmRepositoryPushPresenter } from '../presenters/scmRepositoryPush';
 import { scmRepoPushService } from '../services';
@@ -20,10 +21,12 @@ export let scmRepoPushController = app.controller({
   list: tenantApp
     .handler()
     .input(
-      v.object({
-        tenantId: v.string(),
-        repoId: v.optional(v.string())
-      })
+      Paginator.validate(
+        v.object({
+          tenantId: v.string(),
+          repoId: v.optional(v.string())
+        })
+      )
     )
     .do(async ctx => {
       let paginator = await scmRepoPushService.listScmRepoPushes({
@@ -31,11 +34,9 @@ export let scmRepoPushController = app.controller({
         repoId: ctx.input.repoId
       });
 
-      let pushes = await paginator.run({ limit: 100 });
+      let pushes = await paginator.run(ctx.input);
 
-      return {
-        pushes: pushes.items.map(scmRepositoryPushPresenter)
-      };
+      return Paginator.presentLight(pushes, scmRepositoryPushPresenter);
     }),
 
   get: scmRepoPushApp

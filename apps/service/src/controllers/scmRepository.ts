@@ -1,10 +1,11 @@
 import { v } from '@lowerdeck/validation';
+import { scmRepositoryPushPresenter } from '../presenters';
 import { repositoryPresenter } from '../presenters/repository';
 import {
   scmAccountPreviewPresenter,
   scmRepoPreviewPresenter
 } from '../presenters/scmRepoPreview';
-import { scmInstallationService, scmRepoService } from '../services';
+import { actorService, scmInstallationService, scmRepoService } from '../services';
 import { app } from './_app';
 import { tenantApp } from './tenant';
 
@@ -119,6 +120,27 @@ export let scmRepositoryController = app.controller({
       return repositoryPresenter(repo);
     }),
 
+  searchAndLinkRepo: tenantApp
+    .handler()
+    .input(
+      v.object({
+        tenantId: v.string(),
+        actorId: v.string(),
+        repositoryUrl: v.string()
+      })
+    )
+    .do(async ctx => {
+      let actor = await actorService.getActorById({ id: ctx.input.actorId });
+
+      let repo = await scmRepoService.searchAndLinkRepositoryByUrl({
+        tenant: ctx.tenant,
+        actor,
+        repositoryUrl: ctx.input.repositoryUrl
+      });
+
+      return repositoryPresenter(repo);
+    }),
+
   get: scmRepositoryApp
     .handler()
     .input(
@@ -134,17 +156,25 @@ export let scmRepositoryController = app.controller({
     .input(
       v.object({
         tenantId: v.string(),
-        scmRepositoryId: v.string()
+        scmRepositoryId: v.string(),
+        branchName: v.optional(v.string())
       })
     )
     .do(async ctx => {
       let push = await scmRepoService.createPushForCurrentCommitOnDefaultBranch({
-        repo: ctx.scmRepository
+        repo: ctx.scmRepository,
+        branchName: ctx.input.branchName
       });
+
+      if (!push) {
+        return {
+          success: false
+        };
+      }
 
       return {
         success: true,
-        pushId: push?.id ?? null
+        push: scmRepositoryPushPresenter(push)
       };
     })
 });

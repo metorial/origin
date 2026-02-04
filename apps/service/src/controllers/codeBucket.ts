@@ -224,5 +224,37 @@ export let codeBucketController = app.controller({
       return {
         files: files.map(codeBucketFileContentPresenter)
       };
+    }),
+
+  setFiles: codeBucketApp
+    .handler()
+    .input(
+      v.object({
+        tenantId: v.string(),
+        codeBucketId: v.string(),
+        files: v.array(
+          v.object({
+            path: v.string(),
+            data: v.string(),
+            encoding: v.enumOf(['utf-8', 'base64'])
+          })
+        )
+      })
+    )
+    .do(async ctx => {
+      if (ctx.codeBucket.isReadOnly) {
+        throw new ServiceError(
+          badRequestError({
+            message: 'Cannot modify files in a read-only code bucket'
+          })
+        );
+      }
+
+      await codeBucketService.setFiles({
+        codeBucket: ctx.codeBucket,
+        files: ctx.input.files
+      });
+
+      return { success: true };
     })
 });

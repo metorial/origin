@@ -12,6 +12,8 @@ export let repositoryPresenter = (repository: ScmRepository & { account: ScmAcco
   externalId: repository.externalId,
   externalOwner: repository.externalOwner,
   externalName: repository.externalName,
+  externalUrl: repository.externalUrl,
+  externalIsPrivate: repository.externalIsPrivate,
 
   defaultBranch: repository.defaultBranch,
 

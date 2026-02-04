@@ -409,6 +409,19 @@ func (fsm *FileSystemManager) ImportContents(ctx context.Context, newBucketId st
 	return queue.Wait()
 }
 
+func (fsm *FileSystemManager) SetBucketFiles(ctx context.Context, bucketId string, contents []*FileContentsBase) error {
+	queue := memoryQueue.NewBlockingJobQueue(15)
+
+	for _, file := range contents {
+		f := file
+		queue.AddAndBlockIfFull(func() error {
+			return fsm.PutBucketFile(ctx, bucketId, f.Path, f.Content, "application/octet-stream")
+		})
+	}
+
+	return queue.Wait()
+}
+
 func (fsm *FileSystemManager) Close() {
 	fsm.flushPendingFiles()
 
