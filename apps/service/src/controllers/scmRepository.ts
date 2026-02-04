@@ -4,7 +4,7 @@ import {
   scmAccountPreviewPresenter,
   scmRepoPreviewPresenter
 } from '../presenters/scmRepoPreview';
-import { scmInstallationService, scmRepoService } from '../services';
+import { actorService, scmInstallationService, scmRepoService } from '../services';
 import { app } from './_app';
 import { tenantApp } from './tenant';
 
@@ -114,6 +114,27 @@ export let scmRepositoryController = app.controller({
         name: ctx.input.name,
         description: ctx.input.description,
         isPrivate: ctx.input.isPrivate
+      });
+
+      return repositoryPresenter(repo);
+    }),
+
+  searchAndLinkRepo: tenantApp
+    .handler()
+    .input(
+      v.object({
+        tenantId: v.string(),
+        actorId: v.string(),
+        repositoryUrl: v.string()
+      })
+    )
+    .do(async ctx => {
+      let actor = await actorService.getActorById({ id: ctx.input.actorId });
+
+      let repo = await scmRepoService.searchAndLinkRepositoryByUrl({
+        tenant: ctx.tenant,
+        actor,
+        repositoryUrl: ctx.input.repositoryUrl
       });
 
       return repositoryPresenter(repo);

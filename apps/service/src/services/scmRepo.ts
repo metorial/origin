@@ -2,6 +2,7 @@ import { badRequestError, ServiceError } from '@lowerdeck/error';
 import { Service } from '@lowerdeck/service';
 import crypto from 'crypto';
 import type {
+  Actor,
   ScmBackend,
   ScmInstallation,
   ScmRepository,
@@ -160,6 +161,78 @@ class scmRepoServiceImpl {
             }
           }) satisfies ScmRepoPreview
       );
+    }
+
+    throw new ServiceError(badRequestError({ message: 'Unsupported provider' }));
+  }
+
+  async getRepositoryByPath(i: {
+    installation: ScmInstallation & { backend: ScmBackend };
+    owner: string;
+    repo: string;
+  }): Promise<{ externalId: string; name: string; identifier: string }> {
+    if (i.installation.provider == 'github') {
+      if (!i.installation.externalInstallationId) {
+        throw new ServiceError(badRequestError({ message: 'Installation ID not found' }));
+      }
+      let octokit = await createGitHubInstallationClient(
+        i.installation.externalInstallationId,
+        i.installation.backend
+      );
+
+      try {
+        let repoRes = await octokit.request('GET /repos/{owner}/{repo}', {
+          owner: i.owner,
+          repo: i.repo
+        });
+
+        return {
+          externalId: repoRes.data.id.toString(),
+          name: repoRes.data.name,
+          identifier: `github.com/${repoRes.data.full_name}`
+        };
+      } catch (error: any) {
+        if (error.status === 404) {
+          throw new ServiceError(
+            badRequestError({
+              message: `Repository ${i.owner}/${i.repo} not found or installation does not have access`
+            })
+          );
+        }
+        throw error;
+      }
+    }
+
+    if (i.installation.provider == 'gitlab') {
+      if (!i.installation.accessToken) {
+        throw new ServiceError(badRequestError({ message: 'Access token not found' }));
+      }
+      let gitlab = createGitLabClientWithToken(
+        i.installation.accessToken,
+        i.installation.backend
+      );
+
+      let hostname = new URL(i.installation.backend.webUrl).hostname;
+      let projectPath = `${i.owner}/${i.repo}`;
+
+      try {
+        let project = await gitlab.Projects.show(encodeURIComponent(projectPath));
+
+        return {
+          externalId: project.id.toString(),
+          name: project.name,
+          identifier: `${hostname}/${project.path_with_namespace}`
+        };
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          throw new ServiceError(
+            badRequestError({
+              message: `Repository ${i.owner}/${i.repo} not found or installation does not have access`
+            })
+          );
+        }
+        throw error;
+      }
     }
 
     throw new ServiceError(badRequestError({ message: 'Unsupported provider' }));
@@ -408,6 +481,100 @@ class scmRepoServiceImpl {
     }
 
     throw new ServiceError(badRequestError({ message: 'Unsupported provider' }));
+  }
+
+  async searchAndLinkRepositoryByUrl(i: {
+    tenant: Tenant;
+    actor: Actor;
+    repositoryUrl: string;
+  }) {
+    // Parse repository URL
+    let url: URL;
+    try {
+      url = new URL(i.repositoryUrl);
+    } catch {
+      throw new ServiceError(badRequestError({ message: 'Invalid repository URL' }));
+    }
+
+    let hostname = url.hostname;
+    let pathParts = url.pathname.split('/').filter(p => p);
+
+    if (pathParts.length < 2) {
+      throw new ServiceError(
+        badRequestError({
+          message: 'Invalid repository URL format. Expected: https://provider.com/owner/repo'
+        })
+      );
+    }
+
+    let ownerName = pathParts[0];
+    let repoName = pathParts[1]?.replace(/\.git$/, '');
+
+    if (!ownerName || !repoName) {
+      throw new ServiceError(
+        badRequestError({ message: 'Could not parse repository owner and name from URL' })
+      );
+    }
+
+    // Determine provider from hostname
+    let provider: 'github' | 'gitlab';
+    if (hostname === 'github.com' || hostname.includes('github')) {
+      provider = 'github';
+    } else if (hostname === 'gitlab.com' || hostname.includes('gitlab')) {
+      provider = 'gitlab';
+    } else {
+      throw new ServiceError(
+        badRequestError({
+          message: 'Unsupported repository provider. Only GitHub and GitLab are supported.'
+        })
+      );
+    }
+
+    // Find all installations for this tenant, actor, and provider
+    let installations = await db.scmInstallation.findMany({
+      where: {
+        tenantOid: i.tenant.oid,
+        ownerActorOid: i.actor.oid,
+        provider
+      },
+      include: {
+        backend: true
+      }
+    });
+
+    if (installations.length === 0) {
+      throw new ServiceError(
+        badRequestError({
+          message: `No ${provider} installation found. Please connect a ${provider} account first.`
+        })
+      );
+    }
+
+    // Try each installation to find one with access to the repository
+    for (let installation of installations) {
+      try {
+        let repoInfo = await this.getRepositoryByPath({
+          installation,
+          owner: ownerName,
+          repo: repoName
+        });
+
+        return await this.linkRepository({
+          installation,
+          externalId: repoInfo.externalId
+        });
+      } catch (error) {
+        continue;
+      }
+    }
+
+    throw new ServiceError(
+      badRequestError({
+        message:
+          `Repository ${ownerName}/${repoName} not found or no ${provider} installation has access to it. ` +
+          `Please ensure you have connected a ${provider} account with access to this repository.`
+      })
+    );
   }
 
   async getScmRepoById(i: { tenant: Tenant; scmRepoId: string }) {

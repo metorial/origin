@@ -1,31 +1,10 @@
 import { notFoundError, ServiceError } from '@lowerdeck/error';
 import { Paginator } from '@lowerdeck/pagination';
 import { Service } from '@lowerdeck/service';
-import type { ScmRepository, ScmRepositoryPush, Tenant } from '../../prisma/generated/client';
+import type { Tenant } from '../../prisma/generated/client';
 import { db } from '../db';
-import { getId } from '../id';
 
 class ChangeNotificationServiceImpl {
-  async createForRepoPush(d: {
-    tenant: Tenant;
-    repo: ScmRepository;
-    repoPush: ScmRepositoryPush;
-  }) {
-    return db.changeNotification.create({
-      data: {
-        ...getId('changeNotification'),
-        type: 'repo_push',
-        tenantOid: d.tenant.oid,
-        repoOid: d.repo.oid,
-        repoPushOid: d.repoPush.oid
-      },
-      include: {
-        repo: { include: { account: true } },
-        repoPush: { include: { repo: true } }
-      }
-    });
-  }
-
   async getChangeNotificationById(d: { tenant: Tenant; changeNotificationId: string }) {
     let notification = await db.changeNotification.findFirst({
       where: {
