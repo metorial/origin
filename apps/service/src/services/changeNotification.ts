@@ -1,15 +1,13 @@
 import { notFoundError, ServiceError } from '@lowerdeck/error';
 import { Paginator } from '@lowerdeck/pagination';
 import { Service } from '@lowerdeck/service';
-import type { Tenant } from '../../prisma/generated/client';
 import { db } from '../db';
 
 class ChangeNotificationServiceImpl {
-  async getChangeNotificationById(d: { tenant: Tenant; changeNotificationId: string }) {
+  async getChangeNotificationById(d: { changeNotificationId: string }) {
     let notification = await db.changeNotification.findFirst({
       where: {
-        id: d.changeNotificationId,
-        tenantOid: d.tenant.oid
+        id: d.changeNotificationId
       },
       include: {
         repo: { include: { account: true } },
@@ -22,18 +20,13 @@ class ChangeNotificationServiceImpl {
     return notification;
   }
 
-  async listChangeNotifications(d: { tenant: Tenant; repoId?: string }) {
+  async listChangeNotifications(d: { repoId?: string }) {
     return Paginator.create(({ prisma }) =>
       prisma(async opts =>
         db.changeNotification.findMany({
           ...opts,
           where: {
-            tenantOid: d.tenant.oid,
-            ...(d.repoId && {
-              repo: {
-                id: d.repoId
-              }
-            })
+            ...(d.repoId && { repo: { id: d.repoId } })
           },
           include: {
             repo: { include: { account: true } },

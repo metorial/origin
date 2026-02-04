@@ -3,14 +3,12 @@ import { v } from '@lowerdeck/validation';
 import { changeNotificationPresenter } from '../presenters/changeNotification';
 import { changeNotificationService } from '../services';
 import { app } from './_app';
-import { tenantApp } from './tenant';
 
-export let changeNotificationApp = tenantApp.use(async ctx => {
+export let changeNotificationApp = app.use(async ctx => {
   let changeNotificationId = ctx.body.changeNotificationId;
   if (!changeNotificationId) throw new Error('Change Notification ID is required');
 
   let changeNotification = await changeNotificationService.getChangeNotificationById({
-    tenant: ctx.tenant,
     changeNotificationId
   });
 
@@ -18,19 +16,17 @@ export let changeNotificationApp = tenantApp.use(async ctx => {
 });
 
 export let changeNotificationController = app.controller({
-  list: tenantApp
+  list: app
     .handler()
     .input(
       Paginator.validate(
         v.object({
-          tenantId: v.string(),
           repoId: v.optional(v.string())
         })
       )
     )
     .do(async ctx => {
       let paginator = await changeNotificationService.listChangeNotifications({
-        tenant: ctx.tenant,
         repoId: ctx.input.repoId
       });
 
