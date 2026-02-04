@@ -169,12 +169,14 @@ export let codeBucketController = app.controller({
     .input(
       v.object({
         tenantId: v.string(),
-        codeBucketId: v.string()
+        codeBucketId: v.string(),
+        isReadOnly: v.optional(v.boolean())
       })
     )
     .do(async ctx => {
       let token = await codeBucketService.getEditorToken({
-        codeBucket: ctx.codeBucket
+        codeBucket: ctx.codeBucket,
+        isReadOnly: ctx.codeBucket.isReadOnly || ctx.input.isReadOnly
       });
 
       let url = new URL(env.codeBucket.CODE_BUCKET_EDITOR_URL);

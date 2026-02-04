@@ -40,7 +40,7 @@ func newHttpServiceRouter(service *Service) *mux.Router {
 	return httpRouter
 }
 
-func (hs *HttpService) authenticateRequest(r *http.Request) (string, error) {
+func (hs *HttpService) authenticateRequest(r *http.Request) (string, bool, error) {
 	authHeader := r.Header.Get("Authorization")
 	authQuery := r.URL.Query().Get("metorial-code-bucket-token")
 
@@ -48,14 +48,14 @@ func (hs *HttpService) authenticateRequest(r *http.Request) (string, error) {
 
 	if authHeader != "" {
 		if !strings.HasPrefix(authHeader, "Bearer ") {
-			return "", fmt.Errorf("missing or invalid authorization header")
+			return "", false, fmt.Errorf("missing or invalid authorization header")
 		}
 
 		tokenString = strings.TrimPrefix(authHeader, "Bearer ")
 	}
 
 	if tokenString == "" {
-		return "", fmt.Errorf("missing authorization token")
+		return "", false, fmt.Errorf("missing authorization token")
 	}
 
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (any, error) {
@@ -66,14 +66,14 @@ func (hs *HttpService) authenticateRequest(r *http.Request) (string, error) {
 	})
 
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 
 	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
-		return claims.BucketID, nil
+		return claims.BucketID, claims.IsReadOnly, nil
 	}
 
-	return "", fmt.Errorf("invalid token")
+	return "", false, fmt.Errorf("invalid token")
 }
 
 func (hs *HttpService) setCorsHeaders(w http.ResponseWriter) {
@@ -86,7 +86,7 @@ func (hs *HttpService) handleGetFiles(w http.ResponseWriter, r *http.Request) {
 	hs.setCorsHeaders(w)
 
 	// Authenticate
-	authBucketID, err := hs.authenticateRequest(r)
+	authBucketID, _, err := hs.authenticateRequest(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -109,7 +109,7 @@ func (hs *HttpService) handleGetFile(w http.ResponseWriter, r *http.Request) {
 	filePath := util.NormalizePath(vars["path"])
 
 	// Authenticate
-	authBucketID, err := hs.authenticateRequest(r)
+	authBucketID, _, err := hs.authenticateRequest(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
@@ -136,9 +136,15 @@ func (hs *HttpService) handlePutFile(w http.ResponseWriter, r *http.Request) {
 	filePath := util.NormalizePath(vars["path"])
 
 	// Authenticate
-	authBucketID, err := hs.authenticateRequest(r)
+	authBucketID, isReadOnly, err := hs.authenticateRequest(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	// Silently ignore write operations for read-only tokens
+	if isReadOnly {
+		w.WriteHeader(http.StatusCreated)
 		return
 	}
 
@@ -169,9 +175,15 @@ func (hs *HttpService) handleDeleteFile(w http.ResponseWriter, r *http.Request) 
 	filePath := util.NormalizePath(vars["path"])
 
 	// Authenticate
-	authBucketID, err := hs.authenticateRequest(r)
+	authBucketID, isReadOnly, err := hs.authenticateRequest(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	// Silently ignore delete operations for read-only tokens
+	if isReadOnly {
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
