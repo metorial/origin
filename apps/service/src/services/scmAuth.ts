@@ -216,7 +216,7 @@ class scmAuthServiceImpl {
 
     if (i.provider === 'gitlab') {
       // Exchange code for tokens
-      let { accessToken, refreshToken } = await exchangeGitLabOAuthCode({
+      let { accessToken, refreshToken, expiresAt } = await exchangeGitLabOAuthCode({
         backend,
         code: i.code,
         redirectUri: `${env.service.ORIGIN_SERVICE_PUBLIC_URL}/origin/oauth/gitlab/callback`
@@ -234,6 +234,7 @@ class scmAuthServiceImpl {
 
         accessToken,
         refreshToken,
+        accessTokenExpiresAt: expiresAt,
         accountType: 'user' as const,
 
         externalAccountId: user.id.toString(),
