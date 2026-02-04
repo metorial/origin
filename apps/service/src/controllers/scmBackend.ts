@@ -1,3 +1,4 @@
+import { Paginator } from '@lowerdeck/pagination';
 import { v } from '@lowerdeck/validation';
 import { scmBackendPresenter } from '../presenters/scmBackend';
 import { scmBackendService } from '../services';
@@ -20,16 +21,20 @@ export let scmBackendController = app.controller({
   list: tenantApp
     .handler()
     .input(
-      v.object({
-        tenantId: v.string()
-      })
+      Paginator.validate(
+        v.object({
+          tenantId: v.string()
+        })
+      )
     )
     .do(async ctx => {
-      let backends = await scmBackendService.listScmBackends({
+      let paginator = await scmBackendService.listScmBackends({
         tenant: ctx.tenant
       });
 
-      return backends.map(scmBackendPresenter);
+      let list = await paginator.run(ctx.input);
+
+      return Paginator.presentLight(list, scmBackendPresenter);
     }),
 
   get: scmBackendApp

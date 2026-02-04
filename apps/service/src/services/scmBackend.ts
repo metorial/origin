@@ -1,4 +1,5 @@
 import { badRequestError, notFoundError, ServiceError } from '@lowerdeck/error';
+import { Paginator } from '@lowerdeck/pagination';
 import { Service } from '@lowerdeck/service';
 import type { ScmBackend, Tenant } from '../../prisma/generated/client';
 import { db } from '../db';
@@ -96,12 +97,17 @@ class scmBackendServiceImpl {
   }
 
   async listScmBackends(d: { tenant: Tenant }) {
-    return db.scmBackend.findMany({
-      where: {
-        OR: [{ tenantOid: d.tenant.oid }, { tenantOid: null }]
-      },
-      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }]
-    });
+    return Paginator.create(({ prisma }) =>
+      prisma(
+        async opts =>
+          await db.scmBackend.findMany({
+            ...opts,
+            where: {
+              OR: [{ tenantOid: d.tenant.oid }, { tenantOid: null }]
+            }
+          })
+      )
+    );
   }
 
   async createScmBackend(d: {

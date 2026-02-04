@@ -23,7 +23,8 @@ export let scmBackendSetupSessionController = app.controller({
       v.object({
         tenantId: v.string(),
         type: v.enumOf(['github_enterprise', 'gitlab_selfhosted']),
-        parentInstallationSessionId: v.optional(v.string())
+        parentInstallationSessionId: v.optional(v.string()),
+        redirectUrl: v.optional(v.string())
       })
     )
     .do(async ctx => {
@@ -37,7 +38,8 @@ export let scmBackendSetupSessionController = app.controller({
       let session = await scmInstallationSessionService.createBackendSetupSession({
         tenant: ctx.tenant,
         type: ctx.input.type,
-        parentInstallationSession
+        parentInstallationSession,
+        redirectUrl: ctx.input.redirectUrl
       });
 
       return presentScmBackendSetupSession(session);
