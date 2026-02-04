@@ -117,6 +117,14 @@ export interface GetBucketFilesAsZipResponse {
   expiresAt: Long;
 }
 
+export interface SetBucketFilesRequest {
+  bucketId: string;
+  files: FileContentsBase[];
+}
+
+export interface SetBucketFilesResponse {
+}
+
 export interface ExportBucketToGithubRequest {
   bucketId: string;
   owner: string;
@@ -1662,6 +1670,129 @@ export const GetBucketFilesAsZipResponse: MessageFns<GetBucketFilesAsZipResponse
   },
 };
 
+function createBaseSetBucketFilesRequest(): SetBucketFilesRequest {
+  return { bucketId: "", files: [] };
+}
+
+export const SetBucketFilesRequest: MessageFns<SetBucketFilesRequest> = {
+  encode(message: SetBucketFilesRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.bucketId !== "") {
+      writer.uint32(10).string(message.bucketId);
+    }
+    for (const v of message.files) {
+      FileContentsBase.encode(v!, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetBucketFilesRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetBucketFilesRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.bucketId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.files.push(FileContentsBase.decode(reader, reader.uint32()));
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SetBucketFilesRequest {
+    return {
+      bucketId: isSet(object.bucketId)
+        ? globalThis.String(object.bucketId)
+        : isSet(object.bucket_id)
+        ? globalThis.String(object.bucket_id)
+        : "",
+      files: globalThis.Array.isArray(object?.files) ? object.files.map((e: any) => FileContentsBase.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: SetBucketFilesRequest): unknown {
+    const obj: any = {};
+    if (message.bucketId !== "") {
+      obj.bucketId = message.bucketId;
+    }
+    if (message.files?.length) {
+      obj.files = message.files.map((e) => FileContentsBase.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SetBucketFilesRequest>): SetBucketFilesRequest {
+    return SetBucketFilesRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SetBucketFilesRequest>): SetBucketFilesRequest {
+    const message = createBaseSetBucketFilesRequest();
+    message.bucketId = object.bucketId ?? "";
+    message.files = object.files?.map((e) => FileContentsBase.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseSetBucketFilesResponse(): SetBucketFilesResponse {
+  return {};
+}
+
+export const SetBucketFilesResponse: MessageFns<SetBucketFilesResponse> = {
+  encode(_: SetBucketFilesResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetBucketFilesResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetBucketFilesResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): SetBucketFilesResponse {
+    return {};
+  },
+
+  toJSON(_: SetBucketFilesResponse): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create(base?: DeepPartial<SetBucketFilesResponse>): SetBucketFilesResponse {
+    return SetBucketFilesResponse.fromPartial(base ?? {});
+  },
+  fromPartial(_: DeepPartial<SetBucketFilesResponse>): SetBucketFilesResponse {
+    const message = createBaseSetBucketFilesResponse();
+    return message;
+  },
+};
+
 function createBaseExportBucketToGithubRequest(): ExportBucketToGithubRequest {
   return { bucketId: "", owner: "", repo: "", path: "", token: "" };
 }
@@ -2280,6 +2411,17 @@ export const CodeBucketService = {
       Buffer.from(GetBucketFilesAsZipResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): GetBucketFilesAsZipResponse => GetBucketFilesAsZipResponse.decode(value),
   },
+  setBucketFiles: {
+    path: "/rpc.rpc.CodeBucket/SetBucketFiles",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: SetBucketFilesRequest): Buffer =>
+      Buffer.from(SetBucketFilesRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): SetBucketFilesRequest => SetBucketFilesRequest.decode(value),
+    responseSerialize: (value: SetBucketFilesResponse): Buffer =>
+      Buffer.from(SetBucketFilesResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): SetBucketFilesResponse => SetBucketFilesResponse.decode(value),
+  },
   exportBucketToGithub: {
     path: "/rpc.rpc.CodeBucket/ExportBucketToGithub",
     requestStream: false,
@@ -2315,6 +2457,7 @@ export interface CodeBucketServer extends UntypedServiceImplementation {
   getBucketFiles: handleUnaryCall<GetBucketFilesRequest, GetBucketFilesResponse>;
   getBucketFilesWithContent: handleUnaryCall<GetBucketFilesRequest, GetBucketFilesWithContentResponse>;
   getBucketFilesAsZip: handleUnaryCall<GetBucketFilesAsZipRequest, GetBucketFilesAsZipResponse>;
+  setBucketFiles: handleUnaryCall<SetBucketFilesRequest, SetBucketFilesResponse>;
   exportBucketToGithub: handleUnaryCall<ExportBucketToGithubRequest, ExportBucketToGithubResponse>;
   exportBucketToGitlab: handleUnaryCall<ExportBucketToGitlabRequest, ExportBucketToGitlabResponse>;
 }
@@ -2469,6 +2612,21 @@ export interface CodeBucketClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: GetBucketFilesAsZipResponse) => void,
+  ): ClientUnaryCall;
+  setBucketFiles(
+    request: SetBucketFilesRequest,
+    callback: (error: ServiceError | null, response: SetBucketFilesResponse) => void,
+  ): ClientUnaryCall;
+  setBucketFiles(
+    request: SetBucketFilesRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: SetBucketFilesResponse) => void,
+  ): ClientUnaryCall;
+  setBucketFiles(
+    request: SetBucketFilesRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: SetBucketFilesResponse) => void,
   ): ClientUnaryCall;
   exportBucketToGithub(
     request: ExportBucketToGithubRequest,

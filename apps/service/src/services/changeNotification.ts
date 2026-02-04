@@ -11,7 +11,8 @@ class ChangeNotificationServiceImpl {
       },
       include: {
         repo: { include: { account: true } },
-        repoPush: { include: { repo: true } }
+        repoPush: { include: { repo: true } },
+        tenant: true
       }
     });
     if (!notification)
@@ -30,7 +31,8 @@ class ChangeNotificationServiceImpl {
           },
           include: {
             repo: { include: { account: true } },
-            repoPush: { include: { repo: true } }
+            repoPush: { include: { repo: true } },
+            tenant: true
           },
           orderBy: {
             createdAt: 'desc'

@@ -345,6 +345,36 @@ class codeBucketServiceImpl {
       content: res.content.content
     };
   }
+
+  async setFiles(d: {
+    codeBucket: CodeBucket;
+    files: {
+      path: string;
+      data: string;
+      encoding: 'utf-8' | 'base64';
+    }[];
+  }) {
+    await this.waitForCodeBucketReady({ codeBucketId: d.codeBucket.id });
+
+    if (d.codeBucket.isReadOnly) {
+      throw new ServiceError(
+        badRequestError({
+          message: 'Cannot modify files in a read-only code bucket'
+        })
+      );
+    }
+
+    await codeBucketClient.setBucketFiles({
+      bucketId: d.codeBucket.id,
+      files: d.files.map(f => ({
+        path: normalizePath(f.path),
+        content:
+          f.encoding === 'base64'
+            ? Buffer.from(f.data, 'base64')
+            : Buffer.from(f.data, 'utf-8')
+      }))
+    });
+  }
 }
 
 export let codeBucketService = Service.create(

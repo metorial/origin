@@ -55,7 +55,7 @@ export let scmController = createHono()
       return c.text('Missing params', 400);
     }
 
-    await scmRepoService.receiveWebhookEvent({
+    await scmRepoService.receiveGitHubWebhookEvent({
       idempotencyKey,
       eventType,
       signature,

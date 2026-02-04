@@ -17,6 +17,8 @@ service CodeBucket {
   rpc GetBucketFilesWithContent(GetBucketFilesRequest) returns (GetBucketFilesWithContentResponse);
   rpc GetBucketFilesAsZip(GetBucketFilesAsZipRequest) returns (GetBucketFilesAsZipResponse);
 
+  rpc SetBucketFiles(SetBucketFilesRequest) returns (SetBucketFilesResponse);
+
   rpc ExportBucketToGithub(ExportBucketToGithubRequest) returns (ExportBucketToGithubResponse);
   rpc ExportBucketToGitlab(ExportBucketToGitlabRequest) returns (ExportBucketToGitlabResponse);
 }
@@ -107,6 +109,13 @@ message GetBucketFilesAsZipResponse {
   string download_url = 1;
   int64 expires_at = 2;
 }
+
+message SetBucketFilesRequest {
+  string bucket_id = 1;
+  repeated FileContentsBase files = 2;
+}
+
+message SetBucketFilesResponse {}
 
 message ExportBucketToGithubRequest {
   string bucket_id = 1;

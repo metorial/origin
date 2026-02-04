@@ -32,9 +32,7 @@ export let changeNotificationController = app.controller({
 
       let notifications = await paginator.run(ctx.input);
 
-      return {
-        notifications: notifications.items.map(changeNotificationPresenter)
-      };
+      return Paginator.presentLight(notifications, changeNotificationPresenter);
     }),
 
   get: changeNotificationApp

@@ -38,9 +38,7 @@ export let scmInstallationController = app.controller({
 
       let installations = await paginator.run(ctx.input);
 
-      return {
-        installations: installations.items.map(scmInstallationPresenter)
-      };
+      return Paginator.presentLight(installations, scmInstallationPresenter);
     }),
 
   get: scmInstallationApp

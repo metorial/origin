@@ -36,9 +36,7 @@ export let scmRepoPushController = app.controller({
 
       let pushes = await paginator.run(ctx.input);
 
-      return {
-        pushes: pushes.items.map(scmRepositoryPushPresenter)
-      };
+      return Paginator.presentLight(pushes, scmRepositoryPushPresenter);
     }),
 
   get: scmRepoPushApp

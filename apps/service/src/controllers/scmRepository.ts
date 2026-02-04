@@ -1,4 +1,5 @@
 import { v } from '@lowerdeck/validation';
+import { scmRepositoryPushPresenter } from '../presenters';
 import { repositoryPresenter } from '../presenters/repository';
 import {
   scmAccountPreviewPresenter,
@@ -155,17 +156,25 @@ export let scmRepositoryController = app.controller({
     .input(
       v.object({
         tenantId: v.string(),
-        scmRepositoryId: v.string()
+        scmRepositoryId: v.string(),
+        branchName: v.optional(v.string())
       })
     )
     .do(async ctx => {
       let push = await scmRepoService.createPushForCurrentCommitOnDefaultBranch({
-        repo: ctx.scmRepository
+        repo: ctx.scmRepository,
+        branchName: ctx.input.branchName
       });
+
+      if (!push) {
+        return {
+          success: false
+        };
+      }
 
       return {
         success: true,
-        pushId: push?.id ?? null
+        push: scmRepositoryPushPresenter(push)
       };
     })
 });

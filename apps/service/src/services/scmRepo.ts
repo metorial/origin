@@ -597,7 +597,7 @@ class scmRepoServiceImpl {
     return repo;
   }
 
-  async receiveWebhookEvent(i: {
+  async receiveGitHubWebhookEvent(i: {
     webhookId: string;
     idempotencyKey: string;
     eventType: string;
@@ -644,10 +644,9 @@ class scmRepoServiceImpl {
         }
       });
 
-      if (
-        i.eventType == 'push' &&
-        event.ref?.replace('refs/heads/', '') == webhook.repo.defaultBranch
-      ) {
+      let branchName = event.ref?.replace('refs/heads/', '');
+
+      if (i.eventType == 'push') {
         let push = await db.scmRepositoryPush.create({
           data: {
             ...getId('scmRepositoryPush'),
@@ -655,7 +654,7 @@ class scmRepoServiceImpl {
             tenantOid: webhook.repo.tenantOid,
 
             sha: event.after,
-            branchName: webhook.repo.defaultBranch,
+            branchName,
 
             pusherEmail: event.pusher.email,
             pusherName: event.pusher.name,
@@ -727,7 +726,7 @@ class scmRepoServiceImpl {
 
       let branchName = event.ref?.replace('refs/heads/', '');
 
-      if (i.eventType == 'Push Hook' && branchName == webhook.repo.defaultBranch) {
+      if (i.eventType == 'Push Hook') {
         let hostname = new URL(webhook.repo.installation.backend.webUrl).hostname;
 
         let push = await db.scmRepositoryPush.create({
@@ -737,7 +736,7 @@ class scmRepoServiceImpl {
             tenantOid: webhook.repo.tenantOid,
 
             sha: event.after,
-            branchName: webhook.repo.defaultBranch,
+            branchName,
 
             pusherEmail: event.user_email,
             pusherName: event.user_name,
@@ -752,7 +751,12 @@ class scmRepoServiceImpl {
     }
   }
 
-  async createPushForCurrentCommitOnDefaultBranch(i: { repo: ScmRepository }) {
+  async createPushForCurrentCommitOnDefaultBranch(i: {
+    repo: ScmRepository;
+    branchName?: string;
+  }) {
+    let branch = i.branchName ?? i.repo.defaultBranch;
+
     if (i.repo.provider == 'github') {
       let installation = await db.scmInstallation.findUniqueOrThrow({
         where: { oid: i.repo.installationOid },
@@ -772,7 +776,7 @@ class scmRepoServiceImpl {
           {
             owner: i.repo.externalOwner,
             repo: i.repo.externalName,
-            branch: i.repo.defaultBranch
+            branch: branch
           }
         );
 
@@ -789,14 +793,15 @@ class scmRepoServiceImpl {
             tenantOid: i.repo.tenantOid,
 
             sha: commitRes.data.sha,
-            branchName: i.repo.defaultBranch,
+            branchName: branch,
 
             pusherEmail: commitRes.data.commit.author?.email || null,
             pusherName: commitRes.data.commit.author?.name || null,
 
             senderIdentifier: `github.com/${commitRes.data.author?.login || 'unknown'}`,
             commitMessage: commitRes.data.commit.message
-          }
+          },
+          include: { repo: { include: { account: true } } }
         });
 
         await createHandleRepoPushQueue.add({ pushId: push.id });
@@ -823,7 +828,7 @@ class scmRepoServiceImpl {
 
       try {
         let commits = await gitlab.Commits.all(parseInt(i.repo.externalId), {
-          refName: i.repo.defaultBranch,
+          refName: branch,
           perPage: 1
         });
 
@@ -841,14 +846,15 @@ class scmRepoServiceImpl {
             tenantOid: i.repo.tenantOid,
 
             sha: commit.id,
-            branchName: i.repo.defaultBranch,
+            branchName: branch,
 
             pusherEmail: commit.author_email || null,
             pusherName: commit.author_name || null,
 
             senderIdentifier: `${hostname}/${commit.author_name}`,
             commitMessage: commit.message
-          }
+          },
+          include: { repo: { include: { account: true } } }
         });
 
         await createHandleRepoPushQueue.add({ pushId: push.id });
