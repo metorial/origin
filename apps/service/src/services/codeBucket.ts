@@ -287,14 +287,14 @@ class codeBucketServiceImpl {
       }));
   }
 
-  async getEditorToken(d: { codeBucket: CodeBucket }) {
+  async getEditorToken(d: { codeBucket: CodeBucket; isReadOnly?: boolean }) {
     await this.waitForCodeBucketReady({ codeBucketId: d.codeBucket.id });
 
     let expiresInSeconds = 60 * 60 * 24 * 7;
 
     let res = await codeBucketClient.getBucketToken({
       bucketId: d.codeBucket.id,
-      isReadOnly: d.codeBucket.isReadOnly,
+      isReadOnly: d.isReadOnly ?? d.codeBucket.isReadOnly,
       expiresInSeconds: Long.fromNumber(expiresInSeconds)
     });
 
