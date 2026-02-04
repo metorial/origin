@@ -1,3 +1,4 @@
+import { Paginator } from '@lowerdeck/pagination';
 import { v } from '@lowerdeck/validation';
 import { scmInstallationPresenter } from '../presenters/scmInstallation';
 import { actorService, scmInstallationService } from '../services';
@@ -20,10 +21,12 @@ export let scmInstallationController = app.controller({
   list: tenantApp
     .handler()
     .input(
-      v.object({
-        tenantId: v.string(),
-        actorId: v.string()
-      })
+      Paginator.validate(
+        v.object({
+          tenantId: v.string(),
+          actorId: v.string()
+        })
+      )
     )
     .do(async ctx => {
       let actor = await actorService.getActorById({ id: ctx.input.actorId });
@@ -33,7 +36,7 @@ export let scmInstallationController = app.controller({
         actor
       });
 
-      let installations = await paginator.run({ limit: 100 });
+      let installations = await paginator.run(ctx.input);
 
       return {
         installations: installations.items.map(scmInstallationPresenter)

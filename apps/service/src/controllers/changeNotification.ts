@@ -1,3 +1,4 @@
+import { Paginator } from '@lowerdeck/pagination';
 import { v } from '@lowerdeck/validation';
 import { changeNotificationPresenter } from '../presenters/changeNotification';
 import { changeNotificationService } from '../services';
@@ -20,10 +21,12 @@ export let changeNotificationController = app.controller({
   list: tenantApp
     .handler()
     .input(
-      v.object({
-        tenantId: v.string(),
-        repoId: v.optional(v.string())
-      })
+      Paginator.validate(
+        v.object({
+          tenantId: v.string(),
+          repoId: v.optional(v.string())
+        })
+      )
     )
     .do(async ctx => {
       let paginator = await changeNotificationService.listChangeNotifications({
@@ -31,7 +34,7 @@ export let changeNotificationController = app.controller({
         repoId: ctx.input.repoId
       });
 
-      let notifications = await paginator.run({ limit: 100 });
+      let notifications = await paginator.run(ctx.input);
 
       return {
         notifications: notifications.items.map(changeNotificationPresenter)
