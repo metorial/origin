@@ -1,17 +1,23 @@
 # Origin
 
-Origin is a webhook delivery and event orchestration service that manages reliable event distribution to HTTP endpoints. It handles event routing, delivery retries, failure tracking, and provides detailed delivery analytics.
+Origin is a code workspace management platform that provides isolated file storage, browser-based VS Code editing, and SCM integration for GitHub and GitLab repositories.
+
+## Architecture
+
+The platform consists of two main services:
+
+- **origin-service**: Metadata management, multi-tenant support, database operations
+- **origin-code-bucket**: File storage, workspace management, VS Code web server, SCM integration
 
 ## Features
 
-- **Event Management**: Create, track, and manage events with custom types, topics, and payloads
-- **Webhook Destinations**: Configure HTTP endpoints to receive events with flexible filtering
-- **Delivery Orchestration**: Automated delivery with configurable retry strategies (linear/exponential)
-- **Delivery Tracking**: Monitor delivery attempts, response data, and failure reasons
-- **Topic-Based Routing**: Route events to destinations based on event types and topics
-- **Multi-Tenant Support**: Isolated event streams per tenant with sender identification
-- **Webhook Signing**: Cryptographic signing of webhook payloads for security verification
-- **Delivery Analytics**: Track success rates, attempt counts, and delivery metrics
+- **Workspace Management**: Isolated code buckets with multi-tenant support
+- **Browser-Based IDE**: Embedded VS Code web interface for in-browser editing
+- **SCM Integration**: Import/export from GitHub and GitLab repositories
+- **Multi-Protocol Access**: HTTP REST API, gRPC RPC, and VS Code web server
+- **Flexible Storage**: Redis cache with S3-compatible object storage backend
+- **Token-Based Security**: JWT authentication with configurable expiration and read-only modes
+- **File Operations**: Upload, download, list, delete with ZIP export support
 
 ## Quick Start
 
@@ -67,6 +73,25 @@ services:
     networks:
       - origin-network
 
+  code-bucket:
+    image: ghcr.io/metorial/origin-code-bucket:latest
+    ports:
+      - '52091:52091'  # HTTP API
+      - '52092:52092'  # VS Code Workspace
+    environment:
+      CODE_BUCKET_JWT_SECRET: dev-secret-change-in-production
+      CODE_BUCKET_OBJECT_STORAGE_BUCKET: code-bucket
+      CODE_BUCKET_OBJECT_STORAGE_ENDPOINT: http://object-storage:52010
+      CODE_BUCKET_REDIS_URL: redis://redis:6379
+      CODE_BUCKET_HTTP_ADDRESS: ':52091'
+      CODE_BUCKET_WORKSPACE_ADDRESS: ':52092'
+      CODE_BUCKET_RPC_ADDRESS: ':5050'
+    depends_on:
+      - redis
+      - object-storage
+    networks:
+      - origin-network
+
 volumes:
   postgres_data:
   object-store-data:
@@ -82,284 +107,302 @@ Start the services:
 docker-compose up -d
 ```
 
-The Origin service will be available at `http://localhost:52050`
+The services will be available at:
+- Origin service: `http://localhost:52050`
+- Code bucket HTTP API: `http://localhost:52091`
+- Code bucket VS Code workspace: `http://localhost:52092`
 
-## TypeScript Client
+## gRPC Client
 
 ### Installation
 
 ```bash
-npm install @metorial-services/origin-client
-yarn add @metorial-services/origin-client
-bun add @metorial-services/origin-client
+npm install @grpc/grpc-js @bufbuild/protobuf
 ```
 
 ### Basic Usage
 
 ```typescript
-import { createOriginClient } from '@metorial-services/origin-client';
+import { credentials } from '@grpc/grpc-js';
+import { CodeBucketClient } from './rpc';
 
-let client = createOriginClient({
-  endpoint: 'http://localhost:52050'
-});
+const client = new CodeBucketClient(
+  'localhost:5050',
+  credentials.createInsecure()
+);
 ```
 
 ### Core API Examples
 
-#### 1. Tenant Management
-
-Tenants represent isolated workspaces for event management:
+#### 1. Creating Buckets
 
 ```typescript
-// Create/update a tenant
-let tenant = await client.tenant.upsert({
-  name: 'My Application',
-  identifier: 'my-app'
+// Create from GitHub repository
+await client.createBucketFromGithub({
+  newBucketId: 'bucket-123',
+  owner: 'metorial',
+  repo: 'origin',
+  path: 'apps/code-bucket',
+  ref: 'main',
+  token: 'ghp_...'
 });
 
-// Get a tenant
-let retrievedTenant = await client.tenant.get({
-  tenantId: tenant.id
-});
-```
-
-#### 2. Sender Management
-
-Senders identify the source of events within a tenant:
-
-```typescript
-// Create/update a sender
-let sender = await client.sender.upsert({
-  name: 'Payment Service',
-  identifier: 'payment-service'
+// Create from GitLab project
+await client.createBucketFromGitlab({
+  newBucketId: 'bucket-456',
+  projectId: Long.fromNumber(12345),
+  path: 'src',
+  ref: 'main',
+  token: 'glpat-...',
+  gitlabApiUrl: 'https://gitlab.com/api/v4'
 });
 
-// Get a sender
-let retrievedSender = await client.sender.get({
-  senderId: sender.id
-});
-```
-
-#### 3. Event Destination Management
-
-Destinations define HTTP endpoints that receive events:
-
-```typescript
-// Create a webhook destination
-let destination = await client.eventDestination.create({
-  tenantId: tenant.id,
-  senderId: sender.id,
-  name: 'Production Webhook',
-  description: 'Main production event receiver',
-  eventTypes: ['payment.created', 'payment.failed'],
-  retry: {
-    type: 'exponential',
-    delaySeconds: 60,
-    maxAttempts: 5
-  },
-  variant: {
-    type: 'http_endpoint',
-    url: 'https://api.example.com/webhooks',
-    method: 'POST'
-  }
-});
-
-console.log('Destination ID:', destination.id);
-console.log('Signing Secret:', destination.webhook?.signingSecret);
-
-// List destinations
-let destinations = await client.eventDestination.list({
-  tenantId: tenant.id,
-  limit: 20,
-  order: 'desc'
-});
-
-// Get destination details
-let destinationDetails = await client.eventDestination.get({
-  tenantId: tenant.id,
-  eventDestinationId: destination.id
-});
-
-// Update a destination
-let updated = await client.eventDestination.update({
-  tenantId: tenant.id,
-  eventDestinationId: destination.id,
-  name: 'Updated Webhook',
-  eventTypes: null // Receive all event types
-});
-
-// Delete a destination
-await client.eventDestination.delete({
-  tenantId: tenant.id,
-  eventDestinationId: destination.id
-});
-```
-
-#### 4. Creating Events
-
-Publish events that will be delivered to matching destinations:
-
-```typescript
-// Create an event
-let event = await client.event.create({
-  tenantId: tenant.id,
-  senderId: sender.id,
-  eventType: 'payment.created',
-  topics: ['payments', 'transactions'],
-  payloadJson: JSON.stringify({
-    paymentId: 'pay_123',
-    amount: 1000,
-    currency: 'USD',
-    customer: {
-      id: 'cust_456',
-      email: 'customer@example.com'
-    }
-  }),
+// Create from ZIP file
+await client.createBucketFromZip({
+  newBucketId: 'bucket-789',
+  zipUrl: 'https://example.com/archive.zip',
+  path: '',
   headers: {
-    'X-Custom-Header': 'custom-value'
+    'Authorization': 'Bearer token'
+  }
+});
+
+// Create from file contents
+await client.createBucketFromContents({
+  newBucketId: 'bucket-012',
+  contents: [
+    {
+      path: 'index.ts',
+      content: new TextEncoder().encode('console.log("Hello");')
+    },
+    {
+      path: 'package.json',
+      content: new TextEncoder().encode('{"name": "app"}')
+    }
+  ]
+});
+
+// Clone existing bucket
+await client.cloneBucket({
+  sourceBucketId: 'bucket-123',
+  newBucketId: 'bucket-clone'
+});
+```
+
+#### 2. Token Management
+
+```typescript
+// Generate bucket access token (1 hour expiration)
+const tokenResponse = await client.getBucketToken({
+  bucketId: 'bucket-123',
+  expiresInSeconds: Long.fromNumber(3600),
+  isReadOnly: false
+});
+
+console.log('Token:', tokenResponse.token);
+
+// Generate read-only token
+const readOnlyToken = await client.getBucketToken({
+  bucketId: 'bucket-123',
+  expiresInSeconds: Long.fromNumber(1800),
+  isReadOnly: true
+});
+```
+
+#### 3. File Operations
+
+```typescript
+// Get single file with content
+const fileResponse = await client.getBucketFile({
+  bucketId: 'bucket-123',
+  path: 'src/index.ts'
+});
+
+console.log('Path:', fileResponse.content?.fileInfo?.path);
+console.log('Size:', fileResponse.content?.fileInfo?.size.toString());
+console.log('Content:', new TextDecoder().decode(fileResponse.content?.content));
+
+// List all files
+const filesResponse = await client.getBucketFiles({
+  bucketId: 'bucket-123',
+  prefix: ''
+});
+
+for (const file of filesResponse.files) {
+  console.log('File:', file.path);
+  console.log('Size:', file.size.toString());
+  console.log('Type:', file.contentType);
+  console.log('Modified:', new Date(file.modifiedAt.toNumber() * 1000));
+}
+
+// List files with prefix filter
+const srcFiles = await client.getBucketFiles({
+  bucketId: 'bucket-123',
+  prefix: 'src/'
+});
+
+// Get all files with content
+const filesWithContent = await client.getBucketFilesWithContent({
+  bucketId: 'bucket-123',
+  prefix: 'src/'
+});
+
+for (const file of filesWithContent.files) {
+  const content = new TextDecoder().decode(file.content);
+  console.log(`${file.fileInfo?.path}: ${content.length} chars`);
+}
+
+// Export bucket as ZIP
+const zipResponse = await client.getBucketFilesAsZip({
+  bucketId: 'bucket-123',
+  prefix: ''
+});
+
+console.log('Download URL:', zipResponse.downloadUrl);
+console.log('Expires at:', new Date(zipResponse.expiresAt.toNumber() * 1000));
+```
+
+#### 4. SCM Export
+
+```typescript
+// Export to GitHub
+await client.exportBucketToGithub({
+  bucketId: 'bucket-123',
+  owner: 'metorial',
+  repo: 'origin',
+  path: 'apps/code-bucket',
+  token: 'ghp_...'
+});
+
+// Export to GitLab
+await client.exportBucketToGitlab({
+  bucketId: 'bucket-123',
+  projectId: Long.fromNumber(12345),
+  path: 'src',
+  token: 'glpat-...',
+  gitlabApiUrl: 'https://gitlab.com/api/v4'
+});
+```
+
+#### 5. HTTP API Usage
+
+```typescript
+// Using the HTTP API with a bucket token
+const token = 'eyJhbGc...'; // From getBucketToken
+
+// List files
+const files = await fetch('http://localhost:52091/files?bucketId=bucket-123', {
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+
+// Get file
+const file = await fetch('http://localhost:52091/files/src/index.ts?bucketId=bucket-123', {
+  headers: { 'Authorization': `Bearer ${token}` }
+});
+
+// Upload file
+await fetch('http://localhost:52091/files/src/new-file.ts?bucketId=bucket-123', {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'text/plain'
   },
-  onlyForDestinations: undefined // Send to all matching destinations
+  body: 'console.log("new file");'
 });
 
-console.log('Event ID:', event.id);
-console.log('Status:', event.status);
-console.log('Destination Count:', event.destinationCount);
-
-// Get event details
-let eventDetails = await client.event.get({
-  tenantId: tenant.id,
-  eventId: event.id
+// Delete file
+await fetch('http://localhost:52091/files/src/old-file.ts?bucketId=bucket-123', {
+  method: 'DELETE',
+  headers: { 'Authorization': `Bearer ${token}` }
 });
-
-console.log('Success Count:', eventDetails.successCount);
-console.log('Failure Count:', eventDetails.failureCount);
-
-// List events with filters
-let events = await client.event.list({
-  tenantId: tenant.id,
-  eventTypes: ['payment.created', 'payment.failed'],
-  topics: ['payments'],
-  senderIds: [sender.id],
-  limit: 50,
-  order: 'desc'
-});
-
-for (let evt of events.items) {
-  console.log(`Event ${evt.id}: ${evt.type} - ${evt.status}`);
-}
 ```
 
-#### 5. Delivery Intent Tracking
-
-Monitor delivery intents for each destination:
+#### 6. VS Code Workspace Access
 
 ```typescript
-// List delivery intents
-let intents = await client.eventDeliveryIntent.list({
-  tenantId: tenant.id,
-  eventIds: [event.id],
-  status: ['pending', 'retrying', 'failed'],
-  limit: 20,
-  order: 'desc'
-});
-
-for (let intent of intents.items) {
-  console.log('Intent ID:', intent.id);
-  console.log('Status:', intent.status);
-  console.log('Attempt Count:', intent.attemptCount);
-  console.log('Destination:', intent.destination.name);
-  console.log('Next Attempt At:', intent.nextAttemptAt);
-
-  if (intent.error) {
-    console.log('Error Code:', intent.error.code);
-    console.log('Error Message:', intent.error.message);
-  }
-}
-
-// Get specific intent details
-let intent = await client.eventDeliveryIntent.get({
-  tenantId: tenant.id,
-  eventDeliveryIntentId: intents.items[0].id
-});
-
-console.log('Event:', intent.event.type);
-console.log('Destination URL:', intent.destination.webhook?.url);
+// Open bucket in browser-based VS Code
+const workspaceUrl = `http://localhost:52092/?bucketId=bucket-123&token=${token}`;
+console.log('Open workspace:', workspaceUrl);
+// Navigate user to this URL for in-browser editing
 ```
 
-#### 6. Delivery Attempt Analysis
+## Environment Variables
 
-View individual delivery attempts with response data:
+### origin-service
+
+```bash
+DATABASE_URL=postgresql://origin:origin@localhost:5432/origin
+REDIS_URL=redis://localhost:6379/0
+OBJECT_STORAGE_URL=http://localhost:52010
+LOGS_BUCKET_NAME=logs
+```
+
+### origin-code-bucket
+
+Required:
+```bash
+CODE_BUCKET_JWT_SECRET=your-secret-key
+CODE_BUCKET_OBJECT_STORAGE_ENDPOINT=http://localhost:52010
+CODE_BUCKET_OBJECT_STORAGE_BUCKET=code-bucket
+```
+
+Optional:
+```bash
+CODE_BUCKET_HTTP_ADDRESS=:52091
+CODE_BUCKET_RPC_ADDRESS=:5050
+CODE_BUCKET_WORKSPACE_ADDRESS=:52092
+CODE_BUCKET_REDIS_URL=redis://localhost:6379
+
+# Alternative Redis configuration
+REDIS_ENDPOINT=localhost
+REDIS_PORT=6379
+REDIS_TLS=false
+REDIS_DB=0
+REDIS_PASSWORD=
+```
+
+## Data Models
+
+### FileInfo
 
 ```typescript
-// List delivery attempts
-let attempts = await client.eventDeliveryAttempt.list({
-  tenantId: tenant.id,
-  eventIds: [event.id],
-  status: ['succeeded', 'failed'],
-  limit: 50,
-  order: 'desc'
-});
-
-for (let attempt of attempts.items) {
-  console.log('Attempt ID:', attempt.id);
-  console.log('Status:', attempt.status);
-  console.log('Attempt Number:', attempt.attemptNumber);
-  console.log('Duration:', attempt.durationMs, 'ms');
-
-  if (attempt.response) {
-    console.log('Response Status:', attempt.response.statusCode);
-    console.log('Response Body:', attempt.response.body);
-    console.log('Response Headers:', attempt.response.headers);
-  }
-
-  if (attempt.error) {
-    console.log('Error Code:', attempt.error.code);
-    console.log('Error Message:', attempt.error.message);
-  }
+interface FileInfo {
+  path: string;
+  size: Long;
+  contentType: string;
+  modifiedAt: Long;  // Unix timestamp
 }
-
-// Get detailed attempt information
-let attempt = await client.eventDeliveryAttempt.get({
-  tenantId: tenant.id,
-  eventDeliveryAttemptId: attempts.items[0].id
-});
-
-console.log('Full attempt details:', attempt);
-console.log('Started At:', attempt.startedAt);
-console.log('Completed At:', attempt.completedAt);
-console.log('Intent:', attempt.intent);
 ```
 
-#### 7. Webhook Verification
-
-Verify webhook signatures on the receiving end:
+### FileContent
 
 ```typescript
-import crypto from 'crypto';
-
-function verifyWebhookSignature(payload: string, signature: string, secret: string): boolean {
-  const hmac = crypto.createHmac('sha256', secret);
-  const expectedSignature = hmac.update(payload).digest('hex');
-  return signature === expectedSignature;
+interface FileContent {
+  content: Uint8Array;
+  fileInfo: FileInfo;
 }
-
-// In your webhook handler
-app.post('/webhooks', (req, res) => {
-  const signature = req.headers['x-origin-signature'] as string;
-  const payload = JSON.stringify(req.body);
-
-  if (!verifyWebhookSignature(payload, signature, destination.webhook.signingSecret)) {
-    return res.status(401).send('Invalid signature');
-  }
-
-  // Process the event
-  const event = req.body;
-  console.log('Received event:', event.type);
-  console.log('Payload:', event.payload);
-
-  res.status(200).send('OK');
-});
 ```
+
+## Security
+
+### JWT Token Structure
+
+Tokens are signed using HMAC-256 with the configured secret:
+
+```typescript
+{
+  "aud": "bucket-123",      // Bucket ID
+  "iss": "code-bucket",     // Issuer
+  "exp": 1234567890,        // Expiration timestamp
+  "read_only": false        // Read-only flag
+}
+```
+
+### HTTP API Authentication
+
+Tokens can be provided via:
+- Header: `Authorization: Bearer <token>`
+- Query parameter: `?metorial-code-bucket-token=<token>`
 
 ## License
 
