@@ -20,6 +20,9 @@ model ScmAccount {
 
   externalId String
 
+  backendOid BigInt
+  backend    ScmBackend @relation(fields: [backendOid], references: [oid], onDelete: Cascade)
+
   tenantOid BigInt
   tenant    Tenant @relation(fields: [tenantOid], references: [oid], onDelete: Cascade)
 
@@ -28,7 +31,7 @@ model ScmAccount {
 
   scmRepos ScmRepository[]
 
-  @@unique([tenantOid, provider, externalId])
+  @@unique([tenantOid, backendOid, externalId])
 }
 
 model ScmRepository {
@@ -48,6 +51,9 @@ model ScmRepository {
 
   defaultBranch String @default("main")
 
+  backendOid BigInt
+  backend    ScmBackend @relation(fields: [backendOid], references: [oid], onDelete: Cascade)
+
   accountOid BigInt
   account    ScmAccount @relation(fields: [accountOid], references: [oid], onDelete: Cascade)
 
@@ -65,7 +71,7 @@ model ScmRepository {
   scmRepoPushes       ScmRepositoryPush[]
   changeNotifications ChangeNotification[]
 
-  @@unique([tenantOid, provider, externalId])
+  @@unique([tenantOid, backendOid, externalId])
 }
 
 model ScmInstallation {
