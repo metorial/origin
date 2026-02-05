@@ -268,9 +268,9 @@ class scmRepoServiceImpl {
 
       let account = await db.scmAccount.upsert({
         where: {
-          tenantOid_provider_externalId: {
+          tenantOid_backendOid_externalId: {
             tenantOid: i.installation.tenantOid,
-            provider: i.installation.provider,
+            backendOid: i.installation.backendOid,
             externalId: repoRes.data.owner.id.toString()
           }
         },
@@ -278,6 +278,7 @@ class scmRepoServiceImpl {
         create: {
           ...getId('scmAccount'),
           tenantOid: i.installation.tenantOid,
+          backendOid: i.installation.backendOid,
           ...accountData
         }
       });
@@ -288,6 +289,7 @@ class scmRepoServiceImpl {
         provider: i.installation.provider,
         externalId: repoRes.data.id.toString(),
         tenantOid: i.installation.tenantOid,
+        backendOid: i.installation.backendOid,
         accountOid: account.oid,
         installationOid: i.installation.oid,
         externalIsPrivate: repoRes.data.private,
@@ -299,9 +301,9 @@ class scmRepoServiceImpl {
 
       let repo = await db.scmRepository.upsert({
         where: {
-          tenantOid_provider_externalId: {
+          tenantOid_backendOid_externalId: {
             tenantOid: i.installation.tenantOid,
-            provider: i.installation.provider,
+            backendOid: i.installation.backendOid,
             externalId: i.externalId
           }
         },
@@ -344,9 +346,9 @@ class scmRepoServiceImpl {
 
       let account = await db.scmAccount.upsert({
         where: {
-          tenantOid_provider_externalId: {
+          tenantOid_backendOid_externalId: {
             tenantOid: i.installation.tenantOid,
-            provider: i.installation.provider,
+            backendOid: i.installation.backendOid,
             externalId: project.namespace.id.toString()
           }
         },
@@ -354,6 +356,7 @@ class scmRepoServiceImpl {
         create: {
           ...getId('scmAccount'),
           tenantOid: i.installation.tenantOid,
+          backendOid: i.installation.backendOid,
           ...accountData
         }
       });
@@ -364,6 +367,7 @@ class scmRepoServiceImpl {
         provider: i.installation.provider,
         externalId: project.id.toString(),
         tenantOid: i.installation.tenantOid,
+        backendOid: i.installation.backendOid,
         accountOid: account.oid,
         installationOid: i.installation.oid,
         externalIsPrivate: project.visibility === 'private',
@@ -375,9 +379,9 @@ class scmRepoServiceImpl {
 
       let repo = await db.scmRepository.upsert({
         where: {
-          tenantOid_provider_externalId: {
+          tenantOid_backendOid_externalId: {
             tenantOid: i.installation.tenantOid,
-            provider: i.installation.provider,
+            backendOid: i.installation.backendOid,
             externalId: i.externalId
           }
         },
