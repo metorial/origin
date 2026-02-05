@@ -30,6 +30,8 @@ const (
 	CodeBucket_GetBucketFilesWithContent_FullMethodName = "/rpc.rpc.CodeBucket/GetBucketFilesWithContent"
 	CodeBucket_GetBucketFilesAsZip_FullMethodName       = "/rpc.rpc.CodeBucket/GetBucketFilesAsZip"
 	CodeBucket_SetBucketFiles_FullMethodName            = "/rpc.rpc.CodeBucket/SetBucketFiles"
+	CodeBucket_SetBucketFile_FullMethodName             = "/rpc.rpc.CodeBucket/SetBucketFile"
+	CodeBucket_DeleteBucketFile_FullMethodName          = "/rpc.rpc.CodeBucket/DeleteBucketFile"
 	CodeBucket_ExportBucketToGithub_FullMethodName      = "/rpc.rpc.CodeBucket/ExportBucketToGithub"
 	CodeBucket_ExportBucketToGitlab_FullMethodName      = "/rpc.rpc.CodeBucket/ExportBucketToGitlab"
 )
@@ -49,6 +51,8 @@ type CodeBucketClient interface {
 	GetBucketFilesWithContent(ctx context.Context, in *GetBucketFilesRequest, opts ...grpc.CallOption) (*GetBucketFilesWithContentResponse, error)
 	GetBucketFilesAsZip(ctx context.Context, in *GetBucketFilesAsZipRequest, opts ...grpc.CallOption) (*GetBucketFilesAsZipResponse, error)
 	SetBucketFiles(ctx context.Context, in *SetBucketFilesRequest, opts ...grpc.CallOption) (*SetBucketFilesResponse, error)
+	SetBucketFile(ctx context.Context, in *SetBucketFileRequest, opts ...grpc.CallOption) (*SetBucketFileResponse, error)
+	DeleteBucketFile(ctx context.Context, in *DeleteBucketFileRequest, opts ...grpc.CallOption) (*DeleteBucketFileResponse, error)
 	ExportBucketToGithub(ctx context.Context, in *ExportBucketToGithubRequest, opts ...grpc.CallOption) (*ExportBucketToGithubResponse, error)
 	ExportBucketToGitlab(ctx context.Context, in *ExportBucketToGitlabRequest, opts ...grpc.CallOption) (*ExportBucketToGitlabResponse, error)
 }
@@ -171,6 +175,26 @@ func (c *codeBucketClient) SetBucketFiles(ctx context.Context, in *SetBucketFile
 	return out, nil
 }
 
+func (c *codeBucketClient) SetBucketFile(ctx context.Context, in *SetBucketFileRequest, opts ...grpc.CallOption) (*SetBucketFileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetBucketFileResponse)
+	err := c.cc.Invoke(ctx, CodeBucket_SetBucketFile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *codeBucketClient) DeleteBucketFile(ctx context.Context, in *DeleteBucketFileRequest, opts ...grpc.CallOption) (*DeleteBucketFileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteBucketFileResponse)
+	err := c.cc.Invoke(ctx, CodeBucket_DeleteBucketFile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *codeBucketClient) ExportBucketToGithub(ctx context.Context, in *ExportBucketToGithubRequest, opts ...grpc.CallOption) (*ExportBucketToGithubResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ExportBucketToGithubResponse)
@@ -206,6 +230,8 @@ type CodeBucketServer interface {
 	GetBucketFilesWithContent(context.Context, *GetBucketFilesRequest) (*GetBucketFilesWithContentResponse, error)
 	GetBucketFilesAsZip(context.Context, *GetBucketFilesAsZipRequest) (*GetBucketFilesAsZipResponse, error)
 	SetBucketFiles(context.Context, *SetBucketFilesRequest) (*SetBucketFilesResponse, error)
+	SetBucketFile(context.Context, *SetBucketFileRequest) (*SetBucketFileResponse, error)
+	DeleteBucketFile(context.Context, *DeleteBucketFileRequest) (*DeleteBucketFileResponse, error)
 	ExportBucketToGithub(context.Context, *ExportBucketToGithubRequest) (*ExportBucketToGithubResponse, error)
 	ExportBucketToGitlab(context.Context, *ExportBucketToGitlabRequest) (*ExportBucketToGitlabResponse, error)
 	mustEmbedUnimplementedCodeBucketServer()
@@ -250,6 +276,12 @@ func (UnimplementedCodeBucketServer) GetBucketFilesAsZip(context.Context, *GetBu
 }
 func (UnimplementedCodeBucketServer) SetBucketFiles(context.Context, *SetBucketFilesRequest) (*SetBucketFilesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetBucketFiles not implemented")
+}
+func (UnimplementedCodeBucketServer) SetBucketFile(context.Context, *SetBucketFileRequest) (*SetBucketFileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetBucketFile not implemented")
+}
+func (UnimplementedCodeBucketServer) DeleteBucketFile(context.Context, *DeleteBucketFileRequest) (*DeleteBucketFileResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteBucketFile not implemented")
 }
 func (UnimplementedCodeBucketServer) ExportBucketToGithub(context.Context, *ExportBucketToGithubRequest) (*ExportBucketToGithubResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ExportBucketToGithub not implemented")
@@ -476,6 +508,42 @@ func _CodeBucket_SetBucketFiles_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CodeBucket_SetBucketFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetBucketFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CodeBucketServer).SetBucketFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CodeBucket_SetBucketFile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CodeBucketServer).SetBucketFile(ctx, req.(*SetBucketFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CodeBucket_DeleteBucketFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteBucketFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CodeBucketServer).DeleteBucketFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CodeBucket_DeleteBucketFile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CodeBucketServer).DeleteBucketFile(ctx, req.(*DeleteBucketFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _CodeBucket_ExportBucketToGithub_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ExportBucketToGithubRequest)
 	if err := dec(in); err != nil {
@@ -562,6 +630,14 @@ var CodeBucket_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetBucketFiles",
 			Handler:    _CodeBucket_SetBucketFiles_Handler,
+		},
+		{
+			MethodName: "SetBucketFile",
+			Handler:    _CodeBucket_SetBucketFile_Handler,
+		},
+		{
+			MethodName: "DeleteBucketFile",
+			Handler:    _CodeBucket_DeleteBucketFile_Handler,
 		},
 		{
 			MethodName: "ExportBucketToGithub",

@@ -18,6 +18,8 @@ service CodeBucket {
   rpc GetBucketFilesAsZip(GetBucketFilesAsZipRequest) returns (GetBucketFilesAsZipResponse);
 
   rpc SetBucketFiles(SetBucketFilesRequest) returns (SetBucketFilesResponse);
+  rpc SetBucketFile(SetBucketFileRequest) returns (SetBucketFileResponse);
+  rpc DeleteBucketFile(DeleteBucketFileRequest) returns (DeleteBucketFileResponse);
 
   rpc ExportBucketToGithub(ExportBucketToGithubRequest) returns (ExportBucketToGithubResponse);
   rpc ExportBucketToGitlab(ExportBucketToGitlabRequest) returns (ExportBucketToGitlabResponse);
@@ -116,6 +118,21 @@ message SetBucketFilesRequest {
 }
 
 message SetBucketFilesResponse {}
+
+message SetBucketFileRequest {
+  string bucket_id = 1;
+  string path = 2;
+  bytes content = 3;
+}
+
+message SetBucketFileResponse {}
+
+message DeleteBucketFileRequest {
+  string bucket_id = 1;
+  string path = 2;
+}
+
+message DeleteBucketFileResponse {}
 
 message ExportBucketToGithubRequest {
   string bucket_id = 1;

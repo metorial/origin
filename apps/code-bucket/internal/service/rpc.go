@@ -281,3 +281,38 @@ func (rs *RcpService) SetBucketFiles(ctx context.Context, req *rpc.SetBucketFile
 
 	return &rpc.SetBucketFilesResponse{}, nil
 }
+
+func (rs *RcpService) SetBucketFile(ctx context.Context, req *rpc.SetBucketFileRequest) (*rpc.SetBucketFileResponse, error) {
+	if req.BucketId == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "bucket_id is required")
+	}
+
+	if req.Path == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "path is required")
+	}
+
+	if err := rs.fsm.PutBucketFile(ctx, req.BucketId, req.Path, req.Content, ""); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to set file: %v", err)
+	}
+
+	return &rpc.SetBucketFileResponse{}, nil
+}
+
+func (rs *RcpService) DeleteBucketFile(ctx context.Context, req *rpc.DeleteBucketFileRequest) (*rpc.DeleteBucketFileResponse, error) {
+	if req.BucketId == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "bucket_id is required")
+	}
+
+	if req.Path == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "path is required")
+	}
+
+	if err := rs.fsm.DeleteBucketFile(ctx, req.BucketId, req.Path); err != nil {
+		if err.Error() == "file not found" {
+			return nil, status.Errorf(codes.NotFound, "file not found")
+		}
+		return nil, status.Errorf(codes.Internal, "failed to delete file: %v", err)
+	}
+
+	return &rpc.DeleteBucketFileResponse{}, nil
+}

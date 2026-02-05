@@ -268,6 +268,22 @@ class codeBucketServiceImpl {
     return this.exportCodeBucketToRepo(d);
   }
 
+  async getCodeBucketFiles(d: { codeBucket: CodeBucket; prefix?: string }) {
+    await this.waitForCodeBucketReady({ codeBucketId: d.codeBucket.id });
+
+    let res = await codeBucketClient.getBucketFiles({
+      bucketId: d.codeBucket.id,
+      prefix: d.prefix ?? ''
+    });
+
+    return res.files.map((f: any) => ({
+      path: f.path,
+      size: f.size,
+      contentType: f.contentType,
+      modifiedAt: f.modifiedAt
+    }));
+  }
+
   async getCodeBucketFilesWithContent(d: { codeBucket: CodeBucket; prefix?: string }) {
     await this.waitForCodeBucketReady({ codeBucketId: d.codeBucket.id });
 
@@ -373,6 +389,47 @@ class codeBucketServiceImpl {
             ? Buffer.from(f.data, 'base64')
             : Buffer.from(f.data, 'utf-8')
       }))
+    });
+  }
+
+  async setFile(d: {
+    codeBucket: CodeBucket;
+    path: string;
+    data: string;
+    encoding: 'utf-8' | 'base64';
+  }) {
+    await this.waitForCodeBucketReady({ codeBucketId: d.codeBucket.id });
+
+    if (d.codeBucket.isReadOnly) {
+      throw new ServiceError(
+        badRequestError({
+          message: 'Cannot modify files in a read-only code bucket'
+        })
+      );
+    }
+
+    await codeBucketClient.setBucketFile({
+      bucketId: d.codeBucket.id,
+      path: normalizePath(d.path),
+      content:
+        d.encoding === 'base64' ? Buffer.from(d.data, 'base64') : Buffer.from(d.data, 'utf-8')
+    });
+  }
+
+  async deleteFile(d: { codeBucket: CodeBucket; path: string }) {
+    await this.waitForCodeBucketReady({ codeBucketId: d.codeBucket.id });
+
+    if (d.codeBucket.isReadOnly) {
+      throw new ServiceError(
+        badRequestError({
+          message: 'Cannot modify files in a read-only code bucket'
+        })
+      );
+    }
+
+    await codeBucketClient.deleteBucketFile({
+      bucketId: d.codeBucket.id,
+      path: normalizePath(d.path)
     });
   }
 }

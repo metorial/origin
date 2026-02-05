@@ -125,6 +125,23 @@ export interface SetBucketFilesRequest {
 export interface SetBucketFilesResponse {
 }
 
+export interface SetBucketFileRequest {
+  bucketId: string;
+  path: string;
+  content: Uint8Array;
+}
+
+export interface SetBucketFileResponse {
+}
+
+export interface DeleteBucketFileRequest {
+  bucketId: string;
+  path: string;
+}
+
+export interface DeleteBucketFileResponse {
+}
+
 export interface ExportBucketToGithubRequest {
   bucketId: string;
   owner: string;
@@ -1793,6 +1810,268 @@ export const SetBucketFilesResponse: MessageFns<SetBucketFilesResponse> = {
   },
 };
 
+function createBaseSetBucketFileRequest(): SetBucketFileRequest {
+  return { bucketId: "", path: "", content: new Uint8Array(0) };
+}
+
+export const SetBucketFileRequest: MessageFns<SetBucketFileRequest> = {
+  encode(message: SetBucketFileRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.bucketId !== "") {
+      writer.uint32(10).string(message.bucketId);
+    }
+    if (message.path !== "") {
+      writer.uint32(18).string(message.path);
+    }
+    if (message.content.length !== 0) {
+      writer.uint32(26).bytes(message.content);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetBucketFileRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetBucketFileRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.bucketId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.content = reader.bytes();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SetBucketFileRequest {
+    return {
+      bucketId: isSet(object.bucketId)
+        ? globalThis.String(object.bucketId)
+        : isSet(object.bucket_id)
+        ? globalThis.String(object.bucket_id)
+        : "",
+      path: isSet(object.path) ? globalThis.String(object.path) : "",
+      content: isSet(object.content) ? bytesFromBase64(object.content) : new Uint8Array(0),
+    };
+  },
+
+  toJSON(message: SetBucketFileRequest): unknown {
+    const obj: any = {};
+    if (message.bucketId !== "") {
+      obj.bucketId = message.bucketId;
+    }
+    if (message.path !== "") {
+      obj.path = message.path;
+    }
+    if (message.content.length !== 0) {
+      obj.content = base64FromBytes(message.content);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SetBucketFileRequest>): SetBucketFileRequest {
+    return SetBucketFileRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SetBucketFileRequest>): SetBucketFileRequest {
+    const message = createBaseSetBucketFileRequest();
+    message.bucketId = object.bucketId ?? "";
+    message.path = object.path ?? "";
+    message.content = object.content ?? new Uint8Array(0);
+    return message;
+  },
+};
+
+function createBaseSetBucketFileResponse(): SetBucketFileResponse {
+  return {};
+}
+
+export const SetBucketFileResponse: MessageFns<SetBucketFileResponse> = {
+  encode(_: SetBucketFileResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SetBucketFileResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSetBucketFileResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): SetBucketFileResponse {
+    return {};
+  },
+
+  toJSON(_: SetBucketFileResponse): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create(base?: DeepPartial<SetBucketFileResponse>): SetBucketFileResponse {
+    return SetBucketFileResponse.fromPartial(base ?? {});
+  },
+  fromPartial(_: DeepPartial<SetBucketFileResponse>): SetBucketFileResponse {
+    const message = createBaseSetBucketFileResponse();
+    return message;
+  },
+};
+
+function createBaseDeleteBucketFileRequest(): DeleteBucketFileRequest {
+  return { bucketId: "", path: "" };
+}
+
+export const DeleteBucketFileRequest: MessageFns<DeleteBucketFileRequest> = {
+  encode(message: DeleteBucketFileRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.bucketId !== "") {
+      writer.uint32(10).string(message.bucketId);
+    }
+    if (message.path !== "") {
+      writer.uint32(18).string(message.path);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DeleteBucketFileRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDeleteBucketFileRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.bucketId = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 18) {
+            break;
+          }
+
+          message.path = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DeleteBucketFileRequest {
+    return {
+      bucketId: isSet(object.bucketId)
+        ? globalThis.String(object.bucketId)
+        : isSet(object.bucket_id)
+        ? globalThis.String(object.bucket_id)
+        : "",
+      path: isSet(object.path) ? globalThis.String(object.path) : "",
+    };
+  },
+
+  toJSON(message: DeleteBucketFileRequest): unknown {
+    const obj: any = {};
+    if (message.bucketId !== "") {
+      obj.bucketId = message.bucketId;
+    }
+    if (message.path !== "") {
+      obj.path = message.path;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DeleteBucketFileRequest>): DeleteBucketFileRequest {
+    return DeleteBucketFileRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DeleteBucketFileRequest>): DeleteBucketFileRequest {
+    const message = createBaseDeleteBucketFileRequest();
+    message.bucketId = object.bucketId ?? "";
+    message.path = object.path ?? "";
+    return message;
+  },
+};
+
+function createBaseDeleteBucketFileResponse(): DeleteBucketFileResponse {
+  return {};
+}
+
+export const DeleteBucketFileResponse: MessageFns<DeleteBucketFileResponse> = {
+  encode(_: DeleteBucketFileResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DeleteBucketFileResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDeleteBucketFileResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): DeleteBucketFileResponse {
+    return {};
+  },
+
+  toJSON(_: DeleteBucketFileResponse): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create(base?: DeepPartial<DeleteBucketFileResponse>): DeleteBucketFileResponse {
+    return DeleteBucketFileResponse.fromPartial(base ?? {});
+  },
+  fromPartial(_: DeepPartial<DeleteBucketFileResponse>): DeleteBucketFileResponse {
+    const message = createBaseDeleteBucketFileResponse();
+    return message;
+  },
+};
+
 function createBaseExportBucketToGithubRequest(): ExportBucketToGithubRequest {
   return { bucketId: "", owner: "", repo: "", path: "", token: "" };
 }
@@ -2422,6 +2701,27 @@ export const CodeBucketService = {
       Buffer.from(SetBucketFilesResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): SetBucketFilesResponse => SetBucketFilesResponse.decode(value),
   },
+  setBucketFile: {
+    path: "/rpc.rpc.CodeBucket/SetBucketFile",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: SetBucketFileRequest): Buffer => Buffer.from(SetBucketFileRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): SetBucketFileRequest => SetBucketFileRequest.decode(value),
+    responseSerialize: (value: SetBucketFileResponse): Buffer =>
+      Buffer.from(SetBucketFileResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): SetBucketFileResponse => SetBucketFileResponse.decode(value),
+  },
+  deleteBucketFile: {
+    path: "/rpc.rpc.CodeBucket/DeleteBucketFile",
+    requestStream: false,
+    responseStream: false,
+    requestSerialize: (value: DeleteBucketFileRequest): Buffer =>
+      Buffer.from(DeleteBucketFileRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): DeleteBucketFileRequest => DeleteBucketFileRequest.decode(value),
+    responseSerialize: (value: DeleteBucketFileResponse): Buffer =>
+      Buffer.from(DeleteBucketFileResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): DeleteBucketFileResponse => DeleteBucketFileResponse.decode(value),
+  },
   exportBucketToGithub: {
     path: "/rpc.rpc.CodeBucket/ExportBucketToGithub",
     requestStream: false,
@@ -2458,6 +2758,8 @@ export interface CodeBucketServer extends UntypedServiceImplementation {
   getBucketFilesWithContent: handleUnaryCall<GetBucketFilesRequest, GetBucketFilesWithContentResponse>;
   getBucketFilesAsZip: handleUnaryCall<GetBucketFilesAsZipRequest, GetBucketFilesAsZipResponse>;
   setBucketFiles: handleUnaryCall<SetBucketFilesRequest, SetBucketFilesResponse>;
+  setBucketFile: handleUnaryCall<SetBucketFileRequest, SetBucketFileResponse>;
+  deleteBucketFile: handleUnaryCall<DeleteBucketFileRequest, DeleteBucketFileResponse>;
   exportBucketToGithub: handleUnaryCall<ExportBucketToGithubRequest, ExportBucketToGithubResponse>;
   exportBucketToGitlab: handleUnaryCall<ExportBucketToGitlabRequest, ExportBucketToGitlabResponse>;
 }
@@ -2627,6 +2929,36 @@ export interface CodeBucketClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: SetBucketFilesResponse) => void,
+  ): ClientUnaryCall;
+  setBucketFile(
+    request: SetBucketFileRequest,
+    callback: (error: ServiceError | null, response: SetBucketFileResponse) => void,
+  ): ClientUnaryCall;
+  setBucketFile(
+    request: SetBucketFileRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: SetBucketFileResponse) => void,
+  ): ClientUnaryCall;
+  setBucketFile(
+    request: SetBucketFileRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: SetBucketFileResponse) => void,
+  ): ClientUnaryCall;
+  deleteBucketFile(
+    request: DeleteBucketFileRequest,
+    callback: (error: ServiceError | null, response: DeleteBucketFileResponse) => void,
+  ): ClientUnaryCall;
+  deleteBucketFile(
+    request: DeleteBucketFileRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: DeleteBucketFileResponse) => void,
+  ): ClientUnaryCall;
+  deleteBucketFile(
+    request: DeleteBucketFileRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: DeleteBucketFileResponse) => void,
   ): ClientUnaryCall;
   exportBucketToGithub(
     request: ExportBucketToGithubRequest,
