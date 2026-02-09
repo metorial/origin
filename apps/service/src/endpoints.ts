@@ -1,0 +1,33 @@
+import { redis } from 'bun';
+import { originApi } from './controllers';
+import { db } from './db';
+import { scmController } from './public/scm';
+import { scmBackendService } from './services';
+
+await scmBackendService.ensureDefaultBackends();
+
+let originServer = Bun.serve({
+  fetch: originApi,
+  port: 52090
+});
+
+let scmServer = Bun.serve({
+  fetch: scmController.fetch,
+  port: 52093
+});
+
+console.log(`Origin controller running on http://localhost:${originServer.port}`);
+console.log(`SCM controller running on http://localhost:${scmServer.port}`);
+
+Bun.serve({
+  fetch: async _ => {
+    try {
+      await db.tenant.count();
+      await redis.ping();
+      return new Response('OK');
+    } catch (e) {
+      return new Response('Service Unavailable', { status: 503 });
+    }
+  },
+  port: 12121
+});
