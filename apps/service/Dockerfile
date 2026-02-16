@@ -26,6 +26,9 @@ COPY code-bucket/ts-proto-gen ./node_modules/@metorial/code-bucket-service-gener
 # Build stage
 FROM base AS builder
 
+ARG SENTRY_AUTH_TOKEN
+ENV SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
+
 # Copy package files
 COPY service/package.json service/bun.lock* ./
 
@@ -64,6 +67,9 @@ RUN apt-get update && \
 COPY service/src ./src
 COPY service/tsconfig.json ./tsconfig.json
 
+# Build bundle
+RUN bun run server:build
+
 # Production stage
 FROM base AS runner
 
@@ -79,10 +85,9 @@ COPY --from=builder /app/prisma/generated ./prisma/generated
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
-# Copy source code
-COPY --from=builder /app/src ./src
+# Copy built bundle
+COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/tsconfig.json ./tsconfig.json
 
 # Create non-root user for security
 RUN groupadd -r metorial && useradd -r -g metorial metorial && \
@@ -99,4 +104,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:52090/ping && curl -f http://localhost:12121/ || exit 1
 
 # Start command: push schema and start service
-CMD ["sh", "-c", "bun prisma db push --accept-data-loss && bun src/server.ts"]
+CMD ["sh", "-c", "bun prisma db push --accept-data-loss && bun ./dist/index.js"]
