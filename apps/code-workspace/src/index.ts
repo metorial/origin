@@ -9,10 +9,16 @@ declare global {
 let queryParams = new URLSearchParams(window.location.search);
 let id = queryParams.get('id');
 let token = queryParams.get('token');
-let url = queryParams.get('url');
-if (!id || !token || !url) {
-  console.error('Missing id, url, or token in query parameters');
-  throw new Error('Missing id, url, or token in query parameters');
+if (!id || !token) {
+  console.error('Missing id or token in query parameters');
+  throw new Error('Missing id or token in query parameters');
+}
+
+let urlElement = document.getElementById('code-bucket-api-url');
+let url = urlElement?.textContent?.trim();
+if (!url) {
+  console.error('Missing code bucket API URL');
+  throw new Error('Missing code bucket API URL');
 }
 
 let projectName = queryParams.get('projectName') || 'Metorial Project';

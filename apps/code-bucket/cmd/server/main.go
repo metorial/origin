@@ -27,6 +27,7 @@ func main() {
 	workspaceAddress := getEnvOrDefault("CODE_BUCKET_WORKSPACE_ADDRESS", ":52092")
 
 	jwtSecret := mustGetEnv("CODE_BUCKET_JWT_SECRET")
+	editorApiUrl := getEnvOrDefault("CODE_BUCKET_EDITOR_API_URL", "")
 	objectStorageEndpoint := mustGetEnv("CODE_BUCKET_OBJECT_STORAGE_ENDPOINT")
 	objectStorageBucket := mustGetEnv("CODE_BUCKET_OBJECT_STORAGE_BUCKET")
 	redisURL := os.Getenv("CODE_BUCKET_REDIS_URL")
@@ -51,7 +52,7 @@ func main() {
 		}
 	}
 
-	service := service.NewService(jwtSecret,
+	service := service.NewService(jwtSecret, editorApiUrl,
 		fs.WithObjectStorageEndpoint(objectStorageEndpoint),
 		fs.WithObjectStorageBucket(objectStorageBucket),
 		fs.WithRedisURL(redisURL),

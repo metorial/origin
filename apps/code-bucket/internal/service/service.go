@@ -19,11 +19,11 @@ type Service struct {
 	workspaceServer *workspace.Server
 }
 
-func NewService(jwtSecret string, opts ...fs.FileSystemManagerOption) *Service {
+func NewService(jwtSecret string, editorApiUrl string, opts ...fs.FileSystemManagerOption) *Service {
 	fsm := fs.NewFileSystemManager(opts...)
 
 	// Initialize workspace server
-	workspaceServer, err := workspace.NewServer()
+	workspaceServer, err := workspace.NewServer(editorApiUrl)
 	if err != nil {
 		log.Printf("Warning: Failed to initialize workspace server: %v", err)
 		workspaceServer = nil

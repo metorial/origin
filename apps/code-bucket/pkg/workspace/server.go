@@ -7,22 +7,25 @@ import (
 	"net/http"
 	"path/filepath"
 	"strings"
+	"html"
 )
 
 // Server handles serving the embedded VSCode workspace
 type Server struct {
-	fileSystem fs.FS
+	fileSystem    fs.FS
+	editorApiUrl  string
 }
 
 // NewServer creates a new workspace server
-func NewServer() (*Server, error) {
+func NewServer(editorApiUrl string) (*Server, error) {
 	distFS, err := GetDistFS()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get dist filesystem: %w", err)
 	}
 
 	return &Server{
-		fileSystem: distFS,
+		fileSystem:   distFS,
+		editorApiUrl: editorApiUrl,
 	}, nil
 }
 
@@ -61,6 +64,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			cleanPath = "index.html"
 		}
+	}
+
+	// Replace placeholders in index.html
+	if cleanPath == "index.html" {
+		content := strings.ReplaceAll(string(data), "{{CODE_BUCKET_EDITOR_API_URL}}", html.EscapeString(s.editorApiUrl))
+		data = []byte(content)
 	}
 
 	// Set content type based on file extension
