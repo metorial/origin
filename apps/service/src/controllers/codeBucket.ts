@@ -185,7 +185,6 @@ export let codeBucketController = app.controller({
       let url = new URL(env.codeBucket.CODE_BUCKET_EDITOR_URL);
       url.searchParams.set('id', ctx.codeBucket.id);
       url.searchParams.set('token', token.token);
-      url.searchParams.set('url', env.codeBucket.CODE_BUCKET_EDITOR_API_URL);
 
       return {
         url: url.toString(),

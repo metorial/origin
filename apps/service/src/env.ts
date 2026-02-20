@@ -11,8 +11,7 @@ export let env = createValidatedEnv({
 
   codeBucket: {
     CODE_BUCKET_SERVICE_URL: v.string(),
-    CODE_BUCKET_EDITOR_URL: v.string(),
-    CODE_BUCKET_EDITOR_API_URL: v.string()
+    CODE_BUCKET_EDITOR_URL: v.string()
   },
 
   gh: {
