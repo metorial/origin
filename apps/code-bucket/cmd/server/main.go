@@ -8,9 +8,9 @@ import (
 	"syscall"
 
 	"github.com/joho/godotenv"
-	sentryUtil "github.com/metorial/metorial/services/code-bucket/pkg/sentry-util"
 	"github.com/metorial/metorial/services/code-bucket/internal/service"
 	"github.com/metorial/metorial/services/code-bucket/pkg/fs"
+	sentryUtil "github.com/metorial/metorial/services/code-bucket/pkg/sentry-util"
 )
 
 func main() {
@@ -31,6 +31,14 @@ func main() {
 	objectStorageEndpoint := mustGetEnv("CODE_BUCKET_OBJECT_STORAGE_ENDPOINT")
 	objectStorageBucket := mustGetEnv("CODE_BUCKET_OBJECT_STORAGE_BUCKET")
 	redisURL := os.Getenv("CODE_BUCKET_REDIS_URL")
+
+	fmt.Printf("HTTP Address: %s\n", httpAddress)
+	fmt.Printf("RPC Address: %s\n", rpcAddress)
+	fmt.Printf("Workspace Address: %s\n", workspaceAddress)
+	fmt.Printf("Editor API URL: %s\n", editorApiUrl)
+	fmt.Printf("Object Storage Endpoint: %s\n", objectStorageEndpoint)
+	fmt.Printf("Object Storage Bucket: %s\n", objectStorageBucket)
+	fmt.Printf("Redis URL: %s\n", redisURL)
 
 	if redisURL == "" {
 		redisHost := os.Getenv("REDIS_ENDPOINT")

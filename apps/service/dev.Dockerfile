@@ -15,4 +15,4 @@ COPY . .
 EXPOSE 51001
 
 # Run in dev mode with hot reloading
-CMD ["sh", "-c", "bun prisma db push && bun --watch src/server.ts"]
+CMD ["sh", "-c", "bun --watch src/server.ts"]

@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	objectstorage "github.com/metorial/object-storage/clients/go"
 	memoryQueue "github.com/metorial/metorial/services/code-bucket/pkg/memory-queue"
 	"github.com/metorial/metorial/services/code-bucket/pkg/util"
 	zipImporter "github.com/metorial/metorial/services/code-bucket/pkg/zip-importer"
+	objectstorage "github.com/metorial/object-storage/clients/go"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -141,11 +141,14 @@ func (fsm *FileSystemManager) GetBucketFile(ctx context.Context, bucketID, fileP
 }
 
 func (fsm *FileSystemManager) PutBucketFile(ctx context.Context, bucketID, filePath string, content []byte, contentType string) error {
-
 	if len(content) > maxRedisCacheSize {
 		objectKey := fmt.Sprintf("%s/%s", bucketID, filePath)
 		_, err := fsm.objectStorage.PutObject(fsm.bucketName, objectKey, content, &contentType, nil)
 		return err
+	}
+
+	if !strings.HasPrefix(filePath, "/") {
+		filePath = "/" + filePath
 	}
 
 	redisKey := fmt.Sprintf("bucket:%s:file:%s", bucketID, filePath)
