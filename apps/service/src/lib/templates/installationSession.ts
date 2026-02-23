@@ -13,6 +13,13 @@ export let installationSessionHtml = (d: {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Connect Repository Provider - Metorial</title>
+
+  <link rel="icon" type="image/png" href="https://metorial.com/favicon-96x96.png" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="https://metorial.com/favicon.svg" />
+  <link rel="shortcut icon" href="https://metorial.com/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="https://metorial.com/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-title" content="Metorial" />
+
   <style>
     * {
       box-sizing: border-box;
