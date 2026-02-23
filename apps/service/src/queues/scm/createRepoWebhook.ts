@@ -41,7 +41,7 @@ export let createRepoWebhookQueueProcessor = createRepoWebhookQueue.process(asyn
         owner: repo.externalOwner,
         repo: repo.externalName,
         config: {
-          url: `${env.service.ORIGIN_SERVICE_PUBLIC_URL}/origin/scm/webhook-ingest/gh/${webhookId}`,
+          url: `${env.service.ORIGIN_SERVICE_PUBLIC_URL}/origin/webhook-ingest/gh/${webhookId}`,
           content_type: 'json',
           secret,
           insecure_ssl: '0'
@@ -89,7 +89,7 @@ export let createRepoWebhookQueueProcessor = createRepoWebhookQueue.process(asyn
     try {
       let hook = await gitlab.ProjectHooks.add(
         parseInt(repo.externalId),
-        `${env.service.ORIGIN_SERVICE_PUBLIC_URL}/origin/scm/webhook-ingest/gl/${webhookId}`,
+        `${env.service.ORIGIN_SERVICE_PUBLIC_URL}/origin/webhook-ingest/gl/${webhookId}`,
         {
           pushEvents: true,
           token: secret
