@@ -19,14 +19,15 @@ let scmServer = Bun.serve({
 console.log(`Origin controller running on http://localhost:${originServer.port}`);
 console.log(`SCM controller running on http://localhost:${scmServer.port}`);
 
+let redis = new RedisClient(process.env.REDIS_URL?.replace('rediss://', 'redis://'), {
+  tls: process.env.REDIS_URL?.startsWith('rediss://')
+});
+
 Bun.serve({
   fetch: async _ => {
     try {
       await db.tenant.count();
 
-      let redis = new RedisClient(process.env.REDIS_URL?.replace('rediss://', 'redis://'), {
-        tls: process.env.REDIS_URL?.startsWith('rediss://')
-      });
       await redis.ping();
 
       return new Response('OK');
