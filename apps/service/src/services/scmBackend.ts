@@ -8,34 +8,42 @@ import { getId } from '../id';
 
 class scmBackendServiceImpl {
   async ensureDefaultBackends() {
-    // Ensure default GitHub.com backend exists
-    await db.scmBackend.upsert({
-      where: {
-        defaultIdentifier: 'default::github_com'
-      },
-      create: {
-        ...getId('scmBackend'),
-        defaultIdentifier: 'default::github_com',
-        type: 'github',
-        name: 'GitHub',
-        description: 'GitHub.com',
-        apiUrl: 'https://api.github.com',
-        webUrl: 'https://github.com',
-        appId: env.gh.SCM_GITHUB_APP_ID,
-        appSlug: env.gh.SCM_GITHUB_APP_SLUG,
-        appPrivateKey: SCM_GITHUB_APP_PRIVATE_KEY,
-        clientId: env.gh.SCM_GITHUB_APP_CLIENT_ID,
-        clientSecret: env.gh.SCM_GITHUB_APP_CLIENT_SECRET,
-        isDefault: true
-      },
-      update: {
-        appId: env.gh.SCM_GITHUB_APP_ID,
-        appSlug: env.gh.SCM_GITHUB_APP_SLUG,
-        appPrivateKey: SCM_GITHUB_APP_PRIVATE_KEY,
-        clientId: env.gh.SCM_GITHUB_APP_CLIENT_ID,
-        clientSecret: env.gh.SCM_GITHUB_APP_CLIENT_SECRET
-      }
-    });
+    // Ensure default GitHub.com backend exists (if credentials provided)
+    if (
+      env.gh.SCM_GITHUB_APP_ID &&
+      env.gh.SCM_GITHUB_APP_SLUG &&
+      SCM_GITHUB_APP_PRIVATE_KEY &&
+      env.gh.SCM_GITHUB_APP_CLIENT_ID &&
+      env.gh.SCM_GITHUB_APP_CLIENT_SECRET
+    ) {
+      await db.scmBackend.upsert({
+        where: {
+          defaultIdentifier: 'default::github_com'
+        },
+        create: {
+          ...getId('scmBackend'),
+          defaultIdentifier: 'default::github_com',
+          type: 'github',
+          name: 'GitHub',
+          description: 'GitHub.com',
+          apiUrl: 'https://api.github.com',
+          webUrl: 'https://github.com',
+          appId: env.gh.SCM_GITHUB_APP_ID,
+          appSlug: env.gh.SCM_GITHUB_APP_SLUG,
+          appPrivateKey: SCM_GITHUB_APP_PRIVATE_KEY,
+          clientId: env.gh.SCM_GITHUB_APP_CLIENT_ID,
+          clientSecret: env.gh.SCM_GITHUB_APP_CLIENT_SECRET,
+          isDefault: true
+        },
+        update: {
+          appId: env.gh.SCM_GITHUB_APP_ID,
+          appSlug: env.gh.SCM_GITHUB_APP_SLUG,
+          appPrivateKey: SCM_GITHUB_APP_PRIVATE_KEY,
+          clientId: env.gh.SCM_GITHUB_APP_CLIENT_ID,
+          clientSecret: env.gh.SCM_GITHUB_APP_CLIENT_SECRET
+        }
+      });
+    }
 
     // Ensure default GitLab.com backend exists (if credentials provided)
     if (env.gl.SCM_GITLAB_CLIENT_ID && env.gl.SCM_GITLAB_CLIENT_SECRET) {
