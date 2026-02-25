@@ -15,11 +15,11 @@ export let env = createValidatedEnv({
   },
 
   gh: {
-    SCM_GITHUB_APP_ID: v.string(),
-    SCM_GITHUB_APP_SLUG: v.string(),
-    SCM_GITHUB_APP_PRIVATE_KEY_BASE_64: v.string(),
-    SCM_GITHUB_APP_CLIENT_ID: v.string(),
-    SCM_GITHUB_APP_CLIENT_SECRET: v.string()
+    SCM_GITHUB_APP_ID: v.optional(v.string()),
+    SCM_GITHUB_APP_SLUG: v.optional(v.string()),
+    SCM_GITHUB_APP_PRIVATE_KEY_BASE_64: v.optional(v.string()),
+    SCM_GITHUB_APP_CLIENT_ID: v.optional(v.string()),
+    SCM_GITHUB_APP_CLIENT_SECRET: v.optional(v.string())
   },
 
   gl: {
@@ -28,4 +28,6 @@ export let env = createValidatedEnv({
   }
 });
 
-export let SCM_GITHUB_APP_PRIVATE_KEY = atob(env.gh.SCM_GITHUB_APP_PRIVATE_KEY_BASE_64);
+export let SCM_GITHUB_APP_PRIVATE_KEY = env.gh.SCM_GITHUB_APP_PRIVATE_KEY_BASE_64
+  ? atob(env.gh.SCM_GITHUB_APP_PRIVATE_KEY_BASE_64)
+  : undefined;
