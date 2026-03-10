@@ -6,6 +6,7 @@ import { scmBackendSetupPublicController } from './scmBackendSetup';
 import { scmInstallationSessionPublicController } from './scmInstallationSession';
 
 export let scmController = createHono()
+  .get('/ping', () => new Response('OK'))
   .route('/origin/scm/installation-session', scmInstallationSessionPublicController)
   .route('/origin/scm', scmBackendSetupPublicController)
   .get('/origin/oauth/github/callback', async c => {
